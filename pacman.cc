@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 
 #define CORRIDOR 0
 #define WALL 1
@@ -34,6 +35,8 @@ class Map{
 	    for(int i = 0; i < h; i++){
 	    	cells[i] = new Cell[w];
 	    }
+
+	    srand(time(NULL));
      }
 
      ~Map(){}                  // destructor
