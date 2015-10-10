@@ -18,6 +18,7 @@ class Cell{
 	public:
 		Cell(){
 			type = EMPTY;
+			activeWall = false;
 		}
 		~Cell(){}
 		bool IsType(int t){
@@ -143,38 +144,42 @@ class Map{
 	    	for(int j=0;j<width/2 + 1;j++){
 				if(cells[i][j].GetType() != EMPTY) continue;
 				maxTurns = 1;
-				cells[i][j].SetType(WALL);
+				cells[i][j].SetType(3);
 				cells[i][j].SetActive(true);
-				RecursiveWalls(DOWN, i+1, j, maxTurns);				
-				RecursiveWalls(RIGHT, i, j+1, maxTurns);
+				RecursiveWalls(DOWN, i+1, j, maxTurns, 80);				
+				RecursiveWalls(RIGHT, i, j+1, maxTurns, 80);
 				RecursiveCorridors(i,j);
-				//printMap();
+				printMap();
 						
 			}
 		}
 	}
 
-	void RecursiveWalls(int direction, int i, int j, int maxTurns)
+	void RecursiveWalls(int direction, int i, int j, int maxTurns, int wallProb)
 	{
 		if(maxTurns <= 0 || cells[i][j].GetType() != EMPTY || j > width/2 + 1) return;
-		int randNum = rand() % 2;
-		if (randNum == 1 && CanBeWall(i, j))
+		int randNum = GetRand(wallProb);
+		int mandatoryPart = MandatoryWall(i,j);
+		if (CanBeWall(i,j) && (mandatoryPart > 0 || randNum == WALL))
 		{
-			cells[i][j].SetType(WALL);
+			if(mandatoryPart > 0)
+				cells[i][j].SetType(7);
+			else
+				cells[i][j].SetType(WALL);
 			cells[i][j].SetActive(true);
 			switch(direction)
 			{
 				case UP:
-					RecursiveWalls(UP, i-1, j, maxTurns);
+					RecursiveWalls(UP, i-1, j, maxTurns, wallProb - 20);
 					break;
 				case DOWN:
-					RecursiveWalls(DOWN, i+1, j, maxTurns);
+					RecursiveWalls(DOWN, i+1, j, maxTurns, wallProb - 20);
 					break;
 				case RIGHT:
-					RecursiveWalls(RIGHT, i, j+1, maxTurns);
+					RecursiveWalls(RIGHT, i, j+1, maxTurns, wallProb - 20);
 					break;
 				case LEFT:
-					RecursiveWalls(UP, i, j-1, maxTurns);
+					RecursiveWalls(UP, i, j-1, maxTurns, wallProb - 20);
 					break;
 			}
 			if(maxTurns > 0)
@@ -185,49 +190,149 @@ class Map{
 					case 0:
 						maxTurns--;
 						if(direction == UP || direction == DOWN)
-							RecursiveWalls(LEFT, i, j-1, maxTurns);
+							RecursiveWalls(LEFT, i, j-1, maxTurns, wallProb - 20);
 						else
-							RecursiveWalls(UP, i-1, j, maxTurns);
+							RecursiveWalls(UP, i-1, j, maxTurns, wallProb - 20);
 						break;
 					case 1:
 						maxTurns--;
 						if(direction == UP || direction == DOWN)
-							RecursiveWalls(RIGHT, i, j+1, maxTurns);
+							RecursiveWalls(RIGHT, i, j+1, maxTurns, wallProb - 20);
 						else
-							RecursiveWalls(DOWN, i+1, j, maxTurns);
+							RecursiveWalls(DOWN, i+1, j, maxTurns, wallProb - 20);
 						break;
 				}
 			}
+		}else if(mandatoryPart > 0)
+		{
+			CheckMandatoryPosibilities(mandatoryPart, i, j);
 		}
 	}
 
 	void RecursiveCorridors(int i, int j)
 	{
-		for(int x = i-1; x < i+1; x++)
-			for(int y = j-1; y < j+1; y++)
-			{
-				if(x == i && y == j) 
+		cells[i][j].SetActive(false);
+		for(int x = i-1; x <= i+1; x++)
+			for(int y = j-1; y <= j+1; y++)
+			{				
+				if(cells[x][y].GetType() == EMPTY)
 				{
-					cells[x][y].SetActive(false);					
-					continue;
+					int mandatoryPart = MandatoryWall(x,y);
+					if(mandatoryPart > 0)
+						if (CanBeWall(x,y))
+						{ 
+							cells[x][y].SetType(8);
+							RecursiveCorridors(x,y);
+						}
+						else
+						{
+							CheckMandatoryPosibilities(mandatoryPart, x, y);
+						}
+					else
+						cells[x][y].SetType(CORRIDOR);
 				}
-				if(cells[x][y].GetType() == EMPTY) 
-					cells[x][y].SetType(CORRIDOR);
-				else if(cells[x][y].GetType() == WALL && cells[x][y].IsActive())
+				else if(cells[x][y].GetType() >= WALL && cells[x][y].IsActive())
 					RecursiveCorridors(x,y);
+				else if(cells[x][y].IsType(CORRIDOR))
+				{
+					CheckBadEnd(x,y);
+				}
+			}
+	}
+
+	void CheckMandatoryPosibilities(int mandatoryPart, int i, int j)
+	{
+		switch(mandatoryPart)
+			{
+				case 1:
+					for(int x = i-1; x<=i; x++)
+						for(int y = j-1; y<=j; y++)
+							if(CanBeWall(x, y))
+							{
+								cells[x][y].SetType(WALL);
+								RecursiveCorridors(x,y);
+							}
+
+					break;
+				case 2:
+					for(int x = i-1; x<=i; x++)
+						for(int y = j; y<=j+1; y++)
+							if(CanBeWall(x, y))
+							{
+								cells[x][y].SetType(WALL);
+								RecursiveCorridors(x,y);
+							}
+					break;
+				case 3:
+					for(int x = i; x<=i+1; x++)
+						for(int y = j-1; y<=j; y++)
+							if(CanBeWall(x, y))
+							{
+								cells[x][y].SetType(WALL);
+								RecursiveCorridors(x,y);
+							}
+					break;
+				case 4:
+					for(int x = i; x<=i+1; x++)
+						for(int y = j-1; y<=j; y++)
+							if(CanBeWall(x, y))
+							{
+								cells[x][y].SetType(WALL);
+								RecursiveCorridors(x,y);
+							}
+					break;
 			}
 	}
 
 	bool CanBeWall(int i, int j)
 	{
-		for(int x = i-1; x < i+1; x++)
-			for(int y = j-1; y < j+1; y++)
+		for(int x = i-1; x <= i+1; x++)
+			for(int y = j-1; y <= j+1; y++)
 			{
 				if(x == i || y == j) continue;
-				if(cells[x][y].IsType(WALL) && !cells[x][y].IsActive())
+				if(cells[x][y].GetType() >= WALL && cells[x][j].GetType() <= WALL && !cells[i][y].GetType() <= WALL)
 					return false;
 			}
 		return true;
+	}
+
+	int MandatoryWall(int i, int j)
+	{
+		int maxCorridors;
+		int part = 0;
+		for(int x = i-1; x<=i; x++)
+			for(int y = j-1; y<=j; y++)
+			{
+				maxCorridors = 3;
+				part++;
+				for(int z = x; z<=x+1; z++)
+					for(int k = y; k<=y+1; k++)
+						if(cells[z][k].IsType(CORRIDOR))
+							maxCorridors--;
+				if(maxCorridors < 1)
+				{
+					return part;
+				}
+			}
+		return 0;
+
+	}
+
+	void CheckBadEnd(int i, int j)
+	{
+		int wallsCount = 3;
+		for(int x = i-1; x <= i+1; x++)
+			for(int y = j-1; y <= j+1; y++)
+			{
+				if((x == i || y == j) && cells[x][y].GetType() >= WALL)
+					wallsCount -= 1;
+				if(wallsCount == 0)
+				{					
+					cells[i][j].SetType(WALL);
+					return;
+				}
+			}
+
 	}
 
 	void DoMirrorMap()
