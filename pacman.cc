@@ -5,6 +5,7 @@
 #define CORRIDOR 0
 #define WALL 1
 #define EMPTY -1
+#define MIRROR -2
 
 #define CENTERBOX 7 // ALWAYS PAIR
 
@@ -112,7 +113,7 @@ class Map{
 
      void InsertFixedPositions(){
 		for(int i=0;i<height;i++){
-	    	for(int j=0;j<width/2 + 1;j++){
+	    	for(int j=0;j<width;j++){
 				// MARGIN
 				if(i == 0 || i == height-1){
 					// FIRST ROW OR LAST ROW
@@ -132,10 +133,13 @@ class Map{
 				}else if(i == 1 || j == 1 || i == height - 2){
 					// SIDES RANDOM
 					if(j > 3 && j < width/2+1 && cells[i][j].GetType() == EMPTY)
-					{
+					{//LEFT SIDE
                         int cellType = GetRand(50);
                         if(cellType == WALL)
+                        {
                             cells[i][j].SetType(2);
+                            EnvolveCorridors(i,j);
+                        }
                         else
                             cells[i][j].SetType(cellType);
                         if(!cells[i][j-1].IsType(CORRIDOR) && cells[i][j].IsType(CORRIDOR))
@@ -145,10 +149,13 @@ class Map{
                         }
 
 					}else if(i > 3 && i < height-4 && cells[i][j].GetType() == EMPTY)
-					{
+					{//TOP AND BOTTOM SIDES
                         int cellType = GetRand(50);
                         if(cellType == WALL)
+                        {
                             cells[i][j].SetType(2);
+                            EnvolveCorridors(i,j);
+                        }
                         else
                             cells[i][j].SetType(cellType);
                         if(!cells[i-1][j].IsType(CORRIDOR) && cells[i][j].IsType(CORRIDOR))
@@ -160,6 +167,18 @@ class Map{
 					}
 					else
                         cells[i][j].SetType(CORRIDOR);
+				}else if(j == width/2 && (i < height/2 - CENTERBOX/2 - 1 || i > height/2 + CENTERBOX/2 + 1))
+				{//UNIQUE COLUMN
+					int cellType = GetRand(50);
+                    if(cellType == WALL)
+                    {
+                        cells[i][j].SetType(2);
+                        EnvolveCorridors(i,j);
+                    }else
+                        cells[i][j].SetType(cellType);
+				}else if(j > width/2)
+				{//MIRROR CELLS
+					cells[i][j].SetType(MIRROR);
 				}
 			}
 		}
@@ -171,6 +190,14 @@ class Map{
 		}
      }
 
+     void EnvolveCorridors(int i, int j)
+     {
+        for(int x = i-1; x <= i+1; x++)
+			for(int y = j-1; y <= j+1; y++)
+                if(cells[x][y].IsType(EMPTY) && x != 1 && x != height - 2 && y != 1)
+                    cells[x][y].SetType(CORRIDOR);
+     }
+
      void FillMap(){
 		for(int i=0;i<height - 2;i++){
 	    	for(int j=0;j<width/2 + 1;j++){
@@ -178,6 +205,7 @@ class Map{
 				maxTurns = 1;
 				cells[i][j].SetType(3);
 				cells[i][j].SetActive(true);
+				//printMap();
 				RecursiveWalls(DOWN, i+1, j, maxTurns, 80);
 				RecursiveWalls(RIGHT, i, j+1, maxTurns, 80);
 				RecursiveCorridors(i,j);
@@ -187,7 +215,7 @@ class Map{
 
 	void RecursiveWalls(int direction, int i, int j, int maxTurns, int wallProb)
 	{
-		if(maxTurns <= 0 || cells[i][j].GetType() != EMPTY || j > width/2 + 1) return;
+		if(maxTurns < 0 || cells[i][j].GetType() != EMPTY || j > width/2 + 1) return;
 		int randNum = GetRand(wallProb);
 		int mandatoryPart = MandatoryWall(i,j);
 		if (CanBeWall(i,j) && (mandatoryPart > 0 || randNum == WALL))
@@ -195,7 +223,7 @@ class Map{
 			if(mandatoryPart > 0)
 				cells[i][j].SetType(7);
 			else
-				cells[i][j].SetType(WALL);
+				cells[i][j].SetType(4);
 			cells[i][j].SetActive(true);
 			switch(direction)
 			{
@@ -214,7 +242,7 @@ class Map{
 			}
 			if(maxTurns > 0)
 			{
-				randNum = rand() % 3;
+				randNum = rand() % 4;
 				switch(randNum)
 				{
 					case 0:
@@ -279,18 +307,19 @@ class Map{
 						for(int y = j-1; y<=j; y++)
 							if(CanBeWall(x, y))
 							{
-								cells[x][y].SetType(WALL);
+								cells[x][y].SetType(9);
 								RecursiveCorridors(x,y);
+								break;
 							}
-
 					break;
 				case 2:
 					for(int x = i-1; x<=i; x++)
 						for(int y = j; y<=j+1; y++)
 							if(CanBeWall(x, y))
 							{
-								cells[x][y].SetType(WALL);
+								cells[x][y].SetType(9);
 								RecursiveCorridors(x,y);
+								break;
 							}
 					break;
 				case 3:
@@ -298,8 +327,9 @@ class Map{
 						for(int y = j-1; y<=j; y++)
 							if(CanBeWall(x, y))
 							{
-								cells[x][y].SetType(WALL);
+								cells[x][y].SetType(9);
 								RecursiveCorridors(x,y);
+								break;
 							}
 					break;
 				case 4:
@@ -307,8 +337,9 @@ class Map{
 						for(int y = j; y<=j+1; y++)
 							if(CanBeWall(x, y))
 							{
-								cells[x][y].SetType(WALL);
+								cells[x][y].SetType(9);
 								RecursiveCorridors(x,y);
+								break;
 							}
 					break;
 			}
@@ -320,7 +351,7 @@ class Map{
 			for(int y = j-1; y <= j+1; y++)
 			{
 				if(x == i || y == j) continue;
-				if(cells[x][y].GetType() >= WALL && cells[x][j].GetType() <= WALL && !cells[i][y].GetType() <= WALL)
+				if(cells[x][y].GetType() >= WALL && cells[x][j].GetType() < WALL && cells[i][y].GetType() < WALL)
 					return false;
 			}
 		return true;
@@ -358,7 +389,8 @@ class Map{
 					wallsCount -= 1;
 				if(wallsCount == 0)
 				{
-					cells[i][j].SetType(WALL);
+					cells[i][j].SetType(5);
+					//RecursiveCorridors(i,j);
 					return;
 				}
 			}
