@@ -89,6 +89,10 @@ class Map{
 		height = h;
      }
 
+     Cell GetCell(int x, int y){
+     	return cells[x][y];
+     }
+
      void printMap(){
     	int i,j;
 		for(i=0;i<height;i++){
@@ -137,7 +141,7 @@ class Map{
 				}else if(i == 1 || j == 1 || i == height - 2){
 					// SIDES RANDOM
 					if(j > 3 && j < width/2+1 && cells[i][j].GetType() == EMPTY)
-					{//LEFT SIDE
+					{//TOP AND BOTTOM SIDEA
                         int cellType = GetRand(50);
                         if(cellType == WALL)
                         {
@@ -151,14 +155,21 @@ class Map{
                             cells[i][j+1].SetType(CORRIDOR);
                             cells[i][j+2].SetType(CORRIDOR);
                         }
+                        if(j == width/2 && cells[i][j-1].GetType() >= WALL)
+                        	cells[i][j].SetType(WALL);
 
 					}else if(i > 3 && i < height-4 && cells[i][j].GetType() == EMPTY)
-					{//TOP AND BOTTOM SIDES
+					{//LEFT SIDE
                         int cellType = GetRand(50);
                         if(cellType == WALL)
                         {
-                            cells[i][j].SetType(2);
-                            EnvolveCorridors(i,j);
+                        	if(CanBeWall(i,j))
+                        	{
+                            	cells[i][j].SetType(2);
+                            	EnvolveCorridors(i,j);
+                        	}
+                            else
+                            	cells[i][j].SetType(CORRIDOR);
                         }
                         else
                             cells[i][j].SetType(cellType);
@@ -167,7 +178,6 @@ class Map{
                             cells[i+1][j].SetType(CORRIDOR);
                             cells[i+2][j].SetType(CORRIDOR);
                         }
-
 					}
 					else
                         cells[i][j].SetType(CORRIDOR);
@@ -176,11 +186,20 @@ class Map{
 					int cellType = GetRand(50);
                     if(cellType == WALL)
                     {
-                        cells[i][j].SetType(2);
-                        EnvolveCorridors(i,j);
+                    	if(CanBeWall(i,j))
+                    	{
+                        	cells[i][j].SetType(2);
+                        	EnvolveCorridors(i,j);
+                    	}
+                        else
+                        	cells[i][j].SetType(CORRIDOR);
                     }else
                         cells[i][j].SetType(cellType);
-				}else if(j > width/2)
+				}else if(j == width/2 + 1)
+				{
+					cells[i][j].SetType(WALL);
+				}
+				else if(j > width/2)
 				{//MIRROR CELLS
 					cells[i][j].SetType(MIRROR);
 				}
@@ -394,7 +413,7 @@ class Map{
 				if(wallsCount == 0)
 				{
 					cells[i][j].SetType(5);
-					//RecursiveCorridors(i,j);
+					RecursiveCorridors(i,j);
 					return;
 				}
 			}
@@ -417,45 +436,45 @@ class Map{
 		}
 		return CORRIDOR;
 	}
-
-	void display(void){
-		int i,j;
-
-		glClearColor(0.0,0.0,0.0,0.0);
-		glClear(GL_COLOR_BUFFER_BIT);
-
-		for(i=0;i<WIDTH;i++){
-			for(j=0;j<HEIGHT;j++){
-				if(cells[i][j].GetType() >= WALL)){
-					glColor3f(0.8,0.8,0.8,0.8);
-					glBegin(GL_QUADS);
-
-					glVertex21(i*WIDTH/width, j*HEIGHT/height);
-					glVertex21((i+1)*WIDTH/width, j*HEIGHT/height);
-					glVertex21((i+1)*WIDTH/width, (j+1)*HEIGHT/height);
-					glVertex21(i*WIDTH/width, (j+1)*HEIGHT/height);
-
-					glEnd();
-				}
-			}
-		}
-		glutSwapBuffers();
-	}
-
-	void keyboard(unsigned char c, int x, int y){
-
-	}
 };
 
+Map *map;
+
+void display(){
+	int i,j;
+
+	glClearColor(0.0,0.0,0.0,0.0);
+	glClear(GL_COLOR_BUFFER_BIT);
+
+	for(i=0;i<map->GetWidth();i++){
+		for(j=0;j<map->GetHeight();j++){
+			if(map->GetCell(map->GetHeight() - 1 - j,i).GetType() >= WALL){
+				glColor3f(0.8,0.8,0.8);
+				glBegin(GL_QUADS);
+
+				glVertex2i(i*WIDTH/map->GetWidth(), j*HEIGHT/map->GetHeight());
+				glVertex2i((i+1)*WIDTH/map->GetWidth(), j*HEIGHT/map->GetHeight());
+				glVertex2i((i+1)*WIDTH/map->GetWidth(), (j+1)*HEIGHT/map->GetHeight());
+				glVertex2i(i*WIDTH/map->GetWidth(), (j+1)*HEIGHT/map->GetHeight());
+
+				glEnd();
+			}
+		}
+	}
+	glutSwapBuffers();
+}
+
+void keyboard(unsigned char c, int x, int y){
+
+}
 
 
-int main(int argc, char *argv[]) // g++ -lglut -lGLU -lGL -lm pacman.cc
-{
+int main(int argc, char *argv[]){ // g++ -o pacman pacman.cc -lglut -lGLU -lGL -lm
  	int w, h;
 
  	w = h = 0;
 
-	 if(argc == 2)
+	 if(argc == 3)
 	   {
 	    w = atoi(argv[1]);
 	    h = atoi(argv[2]);
@@ -467,7 +486,7 @@ int main(int argc, char *argv[]) // g++ -lglut -lGLU -lGL -lm pacman.cc
 	    h = 28;
 	   }
 
-    Map *map = new Map(w, h);
+    map = new Map(w, h);
     map->initialize();
     map->printMap();
 
@@ -479,8 +498,8 @@ int main(int argc, char *argv[]) // g++ -lglut -lGLU -lGL -lm pacman.cc
 	glutInitWindowSize(WIDTH,HEIGHT);
 	glutCreateWindow("PAC_MAN");
 
-	glutDisplayFunc(map->display);
-	glutKeyboardFunc(map->keyboard);
+	glutDisplayFunc(display);
+	glutKeyboardFunc(keyboard);
 
 	glMatrixMode(GL_PROJECTION);
 	gluOrtho2D(0,WIDTH-1,0,HEIGHT-1);
