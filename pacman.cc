@@ -1,6 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <GL/glut.h>
+
+#define WIDTH 300
+#define HEIGHT 300
 
 #define CORRIDOR 0
 #define WALL 1
@@ -413,9 +417,39 @@ class Map{
 		}
 		return CORRIDOR;
 	}
+
+	void display(void){
+		int i,j;
+
+		glClearColor(0.0,0.0,0.0,0.0);
+		glClear(GL_COLOR_BUFFER_BIT);
+
+		for(i=0;i<WIDTH;i++){
+			for(j=0;j<HEIGHT;j++){
+				if(cells[i][j].GetType() >= WALL)){
+					glColor3f(0.8,0.8,0.8,0.8);
+					glBegin(GL_QUADS);
+
+					glVertex21(i*WIDTH/width, j*HEIGHT/height);
+					glVertex21((i+1)*WIDTH/width, j*HEIGHT/height);
+					glVertex21((i+1)*WIDTH/width, (j+1)*HEIGHT/height);
+					glVertex21(i*WIDTH/width, (j+1)*HEIGHT/height);
+
+					glEnd();
+				}
+			}
+		}
+		glutSwapBuffers();
+	}
+
+	void keyboard(unsigned char c, int x, int y){
+
+	}
 };
 
-int main(int argc, char *argv[])
+
+
+int main(int argc, char *argv[]) // g++ -lglut -lGLU -lGL -lm pacman.cc
 {
  	int w, h;
 
@@ -429,21 +463,31 @@ int main(int argc, char *argv[])
 
 	 if(!w || !h)
 	   {
-	    w = 41;
-	    h = 30;
+	    w = 31;
+	    h = 28;
 	   }
 
     Map *map = new Map(w, h);
     map->initialize();
     map->printMap();
 
-    /*initializeMap(map);
-    insertFixedPositions(map);
-    fillMap(map);
-    doMirrorMap(map);
+    
 
-    printMap(map);*/
+    glutInit(&argc, argv);
+	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB); 
+	glutInitWindowPosition(50,50);
+	glutInitWindowSize(WIDTH,HEIGHT);
+	glutCreateWindow("PAC_MAN");
 
-    delete map;
+	glutDisplayFunc(map->display);
+	glutKeyboardFunc(map->keyboard);
+
+	glMatrixMode(GL_PROJECTION);
+	gluOrtho2D(0,WIDTH-1,0,HEIGHT-1);
+
+	glutMainLoop();
+
+	delete map;
+	return 0;
 }
 
