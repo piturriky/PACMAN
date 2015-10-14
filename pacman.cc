@@ -142,7 +142,7 @@ class Map{
 					// SIDES RANDOM
 					if(j > 3 && j < width/2+1 && cells[i][j].GetType() == EMPTY)
 					{//TOP AND BOTTOM SIDEA
-                        int cellType = GetRand(50);
+                        int cellType = GetRand(20);
                         if(cellType == WALL)
                         {
                             cells[i][j].SetType(2);
@@ -160,7 +160,7 @@ class Map{
 
 					}else if(i > 3 && i < height-4 && cells[i][j].GetType() == EMPTY)
 					{//LEFT SIDE
-                        int cellType = GetRand(50);
+                        int cellType = GetRand(20);
                         if(cellType == WALL)
                         {
                         	if(CanBeWall(i,j))
@@ -302,7 +302,7 @@ class Map{
 					if(mandatoryPart > 0)
 						if (CanBeWall(x,y))
 						{
-							cells[x][y].SetType(8);
+							cells[x][y].SetType(WALL);
 							RecursiveCorridors(x,y);
 						}
 						else
@@ -330,7 +330,7 @@ class Map{
 						for(int y = j-1; y<=j; y++)
 							if(CanBeWall(x, y))
 							{
-								cells[x][y].SetType(9);
+								cells[x][y].SetType(1);
 								RecursiveCorridors(x,y);
 								break;
 							}
@@ -340,7 +340,7 @@ class Map{
 						for(int y = j; y<=j+1; y++)
 							if(CanBeWall(x, y))
 							{
-								cells[x][y].SetType(9);
+								cells[x][y].SetType(2);
 								RecursiveCorridors(x,y);
 								break;
 							}
@@ -350,7 +350,7 @@ class Map{
 						for(int y = j-1; y<=j; y++)
 							if(CanBeWall(x, y))
 							{
-								cells[x][y].SetType(9);
+								cells[x][y].SetType(3);
 								RecursiveCorridors(x,y);
 								break;
 							}
@@ -360,7 +360,7 @@ class Map{
 						for(int y = j; y<=j+1; y++)
 							if(CanBeWall(x, y))
 							{
-								cells[x][y].SetType(9);
+								cells[x][y].SetType(4);
 								RecursiveCorridors(x,y);
 								break;
 							}
@@ -496,7 +496,7 @@ int main(int argc, char *argv[]){ // g++ -o pacman pacman.cc -lglut -lGLU -lGL -
 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB); 
 	glutInitWindowPosition(50,50);
 	glutInitWindowSize(WIDTH,HEIGHT);
-	glutCreateWindow("PAC_MAN");
+	glutCreateWindow("PAC MAN");
 
 	glutDisplayFunc(display);
 	glutKeyboardFunc(keyboard);
