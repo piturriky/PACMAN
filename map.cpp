@@ -176,8 +176,8 @@ class Map{
 				maxTurns = 1;
 				cells[i][j].SetType(WALL);
 				cells[i][j].SetActive(true);
-				RecursiveWalls(DOWN, i+1, j, maxTurns, 80);
-				RecursiveWalls(RIGHT, i, j+1, maxTurns, 80);
+				RecursiveWalls(DOWN, i+1, j, maxTurns, INITIAL_WALL_PROBABILITY);
+				RecursiveWalls(RIGHT, i, j+1, maxTurns, INITIAL_WALL_PROBABILITY);
 				RecursiveCorridors(i,j);
 			}
 		}
@@ -212,7 +212,7 @@ class Map{
 			}
 			if(maxTurns > 0)
 			{
-				randNum = rand() % 4;
+				randNum = rand() % 4; //50% probability to turn
 				switch(randNum)
 				{
 					case 0:
