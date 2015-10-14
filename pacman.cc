@@ -3,21 +3,36 @@
 #include <time.h>
 #include <GL/glut.h>
 
-#define WIDTH 300
-#define HEIGHT 300
+#define WINDOW_NAME "PAC MAN"
+
+#define WIDTH 600
+#define HEIGHT 600
+
+#define ESTANDARD_CELLS_WIDTH 31
+#define ESTANDARD_CELLS_HEIGHT 28
+
+#define MIN_CELLS_WIDTH 21
+#define MIN_CELLS_HEIGHT 20
 
 #define CORRIDOR 0
 #define WALL 1
 #define EMPTY -1
 #define MIRROR -2
 
-#define CENTERBOX 7 // ALWAYS PAIR
+#define CENTERBOX 7
 
 //DIRECTIONS
 #define UP 0
 #define DOWN 1
 #define LEFT 2
 #define RIGHT 3
+
+//PROBABILITIES
+#define PROBABILITY_WALL_FIRST_LEVEL 20
+#define PROBABILITY_WALL_UNIQUE_COL 50
+
+//VARIABLES
+int wallProbDecrease = 20;
 
 class Cell{
 	public:
@@ -50,8 +65,8 @@ class Cell{
 };
 
 class Map{
-	public:                    // begin public section
-      Map(int w, int h){     // constructor
+	public:
+      Map(int w, int h){
       	width = w;
       	if (w % 2 == 0){
       		width += 1;
@@ -68,7 +83,7 @@ class Map{
 	    srand(time(NULL));
      }
 
-     ~Map(){}                  // destructor
+     ~Map(){}
 
      int GetWidth(){
 		return width;
@@ -97,9 +112,9 @@ class Map{
     	int i,j;
 		for(i=0;i<height;i++){
 	    	for(j=0;j<width;j++){
-				if(cells[i][j].GetType() >= WALL) printf("%i", cells[i][j].GetType());
-				else if(cells[i][j].GetType() == CORRIDOR)printf("·");
-				else if(cells[i][j].GetType() == EMPTY)printf(" ");
+				if(cells[i][j].IsType(WALL)) printf("%i", cells[i][j].GetType());
+				else if(cells[i][j].IsType(CORRIDOR))printf("·");
+				else if(cells[i][j].IsType(EMPTY))printf(" ");
 			}
 			printf("\n");
 		}
@@ -107,15 +122,14 @@ class Map{
 
      void initialize(){
      	InsertFixedPositions();
-     	printMap();
      	FillMap();
      	DoMirrorMap();
      }
 
-   private:                   // begin private section
+   private:
      int height;
      int width;
-     int maxTurns; /////////////////////////////////////////////////////ARREGLAR
+     int maxTurns;
 
      Cell **cells;
 
@@ -140,12 +154,12 @@ class Map{
 					cells[i][j].SetType(WALL);
 				}else if(i == 1 || j == 1 || i == height - 2){
 					// SIDES RANDOM
-					if(j > 3 && j < width/2+1 && cells[i][j].GetType() == EMPTY)
+					if(j > 3 && j < width/2+1 && cells[i][j].IsType(EMPTY))
 					{//TOP AND BOTTOM SIDEA
-                        int cellType = GetRand(20);
+                        int cellType = GetRand(PROBABILITY_WALL_FIRST_LEVEL);
                         if(cellType == WALL)
                         {
-                            cells[i][j].SetType(2);
+                            cells[i][j].SetType(WALL);
                             EnvolveCorridors(i,j);
                         }
                         else
@@ -155,17 +169,17 @@ class Map{
                             cells[i][j+1].SetType(CORRIDOR);
                             cells[i][j+2].SetType(CORRIDOR);
                         }
-                        if(j == width/2 && cells[i][j-1].GetType() >= WALL)
+                        if(j == width/2 && cells[i][j-1].IsType(WALL))
                         	cells[i][j].SetType(WALL);
 
-					}else if(i > 3 && i < height-4 && cells[i][j].GetType() == EMPTY)
+					}else if(i > 3 && i < height-4 && cells[i][j].IsType(EMPTY))
 					{//LEFT SIDE
-                        int cellType = GetRand(20);
+                        int cellType = GetRand(PROBABILITY_WALL_FIRST_LEVEL);
                         if(cellType == WALL)
                         {
                         	if(CanBeWall(i,j))
                         	{
-                            	cells[i][j].SetType(2);
+                            	cells[i][j].SetType(WALL);
                             	EnvolveCorridors(i,j);
                         	}
                             else
@@ -183,12 +197,12 @@ class Map{
                         cells[i][j].SetType(CORRIDOR);
 				}else if(j == width/2 && (i < height/2 - CENTERBOX/2 - 1 || i > height/2 + CENTERBOX/2 + 1))
 				{//UNIQUE COLUMN
-					int cellType = GetRand(50);
+					int cellType = GetRand(PROBABILITY_WALL_UNIQUE_COL);
                     if(cellType == WALL)
                     {
                     	if(CanBeWall(i,j))
                     	{
-                        	cells[i][j].SetType(2);
+                        	cells[i][j].SetType(WALL);
                         	EnvolveCorridors(i,j);
                     	}
                         else
@@ -207,7 +221,7 @@ class Map{
 		}
 		for(int i = height/2 - CENTERBOX/2 - 1; i < height/2 + CENTERBOX/2 + 2; i++){
 			for(int j = width/2 - CENTERBOX/2 - 1; j < width/2 + 1; j++){
-				if(cells[i][j].GetType() == EMPTY)
+				if(cells[i][j].IsType(EMPTY))
 					cells[i][j].SetType(CORRIDOR);
 			}
 		}
@@ -224,11 +238,10 @@ class Map{
      void FillMap(){
 		for(int i=0;i<height - 2;i++){
 	    	for(int j=0;j<width/2 + 1;j++){
-				if(cells[i][j].GetType() != EMPTY) continue;
+				if(!cells[i][j].IsType(EMPTY)) continue;
 				maxTurns = 1;
-				cells[i][j].SetType(3);
+				cells[i][j].SetType(WALL);
 				cells[i][j].SetActive(true);
-				//printMap();
 				RecursiveWalls(DOWN, i+1, j, maxTurns, 80);
 				RecursiveWalls(RIGHT, i, j+1, maxTurns, 80);
 				RecursiveCorridors(i,j);
@@ -238,29 +251,29 @@ class Map{
 
 	void RecursiveWalls(int direction, int i, int j, int maxTurns, int wallProb)
 	{
-		if(maxTurns < 0 || cells[i][j].GetType() != EMPTY || j > width/2 + 1) return;
+		if(maxTurns < 0 || !cells[i][j].IsType(EMPTY) || j > width/2 + 1) return;
 		int randNum = GetRand(wallProb);
 		int mandatoryPart = MandatoryWall(i,j);
 		if (CanBeWall(i,j) && (mandatoryPart > 0 || randNum == WALL))
 		{
 			if(mandatoryPart > 0)
-				cells[i][j].SetType(7);
+				cells[i][j].SetType(WALL);
 			else
-				cells[i][j].SetType(4);
+				cells[i][j].SetType(WALL);
 			cells[i][j].SetActive(true);
 			switch(direction)
 			{
 				case UP:
-					RecursiveWalls(UP, i-1, j, maxTurns, wallProb - 20);
+					RecursiveWalls(UP, i-1, j, maxTurns, wallProb - wallProbDecrease);
 					break;
 				case DOWN:
-					RecursiveWalls(DOWN, i+1, j, maxTurns, wallProb - 20);
+					RecursiveWalls(DOWN, i+1, j, maxTurns, wallProb - wallProbDecrease);
 					break;
 				case RIGHT:
-					RecursiveWalls(RIGHT, i, j+1, maxTurns, wallProb - 20);
+					RecursiveWalls(RIGHT, i, j+1, maxTurns, wallProb - wallProbDecrease);
 					break;
 				case LEFT:
-					RecursiveWalls(UP, i, j-1, maxTurns, wallProb - 20);
+					RecursiveWalls(UP, i, j-1, maxTurns, wallProb - wallProbDecrease);
 					break;
 			}
 			if(maxTurns > 0)
@@ -271,16 +284,16 @@ class Map{
 					case 0:
 						maxTurns--;
 						if(direction == UP || direction == DOWN)
-							RecursiveWalls(LEFT, i, j-1, maxTurns, wallProb - 20);
+							RecursiveWalls(LEFT, i, j-1, maxTurns, wallProb - wallProbDecrease);
 						else
-							RecursiveWalls(UP, i-1, j, maxTurns, wallProb - 20);
+							RecursiveWalls(UP, i-1, j, maxTurns, wallProb - wallProbDecrease);
 						break;
 					case 1:
 						maxTurns--;
 						if(direction == UP || direction == DOWN)
-							RecursiveWalls(RIGHT, i, j+1, maxTurns, wallProb - 20);
+							RecursiveWalls(RIGHT, i, j+1, maxTurns, wallProb - wallProbDecrease);
 						else
-							RecursiveWalls(DOWN, i+1, j, maxTurns, wallProb - 20);
+							RecursiveWalls(DOWN, i+1, j, maxTurns, wallProb - wallProbDecrease);
 						break;
 				}
 			}
@@ -296,7 +309,7 @@ class Map{
 		for(int x = i-1; x <= i+1; x++)
 			for(int y = j-1; y <= j+1; y++)
 			{
-				if(cells[x][y].GetType() == EMPTY)
+				if(cells[x][y].IsType(EMPTY))
 				{
 					int mandatoryPart = MandatoryWall(x,y);
 					if(mandatoryPart > 0)
@@ -312,7 +325,7 @@ class Map{
 					else
 						cells[x][y].SetType(CORRIDOR);
 				}
-				else if(cells[x][y].GetType() >= WALL && cells[x][y].IsActive())
+				else if(cells[x][y].IsType(WALL) && cells[x][y].IsActive())
 					RecursiveCorridors(x,y);
 				else if(cells[x][y].IsType(CORRIDOR))
 				{
@@ -330,9 +343,9 @@ class Map{
 						for(int y = j-1; y<=j; y++)
 							if(CanBeWall(x, y))
 							{
-								cells[x][y].SetType(1);
+								cells[x][y].SetType(WALL);
 								RecursiveCorridors(x,y);
-								break;
+								return;
 							}
 					break;
 				case 2:
@@ -340,9 +353,9 @@ class Map{
 						for(int y = j; y<=j+1; y++)
 							if(CanBeWall(x, y))
 							{
-								cells[x][y].SetType(2);
+								cells[x][y].SetType(WALL);
 								RecursiveCorridors(x,y);
-								break;
+								return;
 							}
 					break;
 				case 3:
@@ -350,9 +363,9 @@ class Map{
 						for(int y = j-1; y<=j; y++)
 							if(CanBeWall(x, y))
 							{
-								cells[x][y].SetType(3);
+								cells[x][y].SetType(WALL);
 								RecursiveCorridors(x,y);
-								break;
+								return;
 							}
 					break;
 				case 4:
@@ -360,9 +373,9 @@ class Map{
 						for(int y = j; y<=j+1; y++)
 							if(CanBeWall(x, y))
 							{
-								cells[x][y].SetType(4);
+								cells[x][y].SetType(WALL);
 								RecursiveCorridors(x,y);
-								break;
+								return;
 							}
 					break;
 			}
@@ -374,7 +387,7 @@ class Map{
 			for(int y = j-1; y <= j+1; y++)
 			{
 				if(x == i || y == j) continue;
-				if(cells[x][y].GetType() >= WALL && cells[x][j].GetType() < WALL && cells[i][y].GetType() < WALL)
+				if(cells[x][y].IsType(WALL) && !cells[x][j].IsType(WALL) && !cells[i][y].IsType(WALL))
 					return false;
 			}
 		return true;
@@ -408,11 +421,11 @@ class Map{
 		for(int x = i-1; x <= i+1; x++)
 			for(int y = j-1; y <= j+1; y++)
 			{
-				if((x == i || y == j) && cells[x][y].GetType() >= WALL)
+				if((x == i || y == j) && cells[x][y].IsType(WALL))
 					wallsCount -= 1;
 				if(wallsCount == 0)
 				{
-					cells[i][j].SetType(5);
+					cells[i][j].SetType(WALL);
 					RecursiveCorridors(i,j);
 					return;
 				}
@@ -438,18 +451,68 @@ class Map{
 	}
 };
 
+void getRandoomWallColor(int *red,int *green,int *blue){
+
+	int randVal = rand() % 200 + 200;
+	int max = 255;
+	int val;
+
+	switch(rand() % 3){
+		case 0:
+		{
+			*red = 0;
+			if(randVal < max) *green = rand() % randVal;
+			else *green = rand() % max;
+			
+			randVal -= *green;
+
+			if(randVal < max) *blue = rand() % randVal;
+			else *blue = rand() % max;
+			break;
+		}
+		case 1:
+		{
+			*green = 0;
+			if(randVal < max) *red = rand() % randVal;
+			else *red = rand() % max;
+			
+			randVal -= *red;
+
+			if(randVal < max) *blue = rand() % randVal;
+			else *blue = rand() % max;
+			break;
+		}
+		case 2:
+		{
+			*blue = 0;
+			if(randVal < max) *green = rand() % randVal;
+			else *green = rand() % max;
+			
+			randVal -= *green;
+
+			if(randVal < max) *red = rand() % randVal;
+			else *red = rand() % max;
+			break;
+		}
+	}
+}
+
 Map *map;
 
 void display(){
 	int i,j;
+	int red, green, blue;
+	float max = 255.0f;
+
+	getRandoomWallColor(&red,&green,&blue);
 
 	glClearColor(0.0,0.0,0.0,0.0);
 	glClear(GL_COLOR_BUFFER_BIT);
 
 	for(i=0;i<map->GetWidth();i++){
 		for(j=0;j<map->GetHeight();j++){
-			if(map->GetCell(map->GetHeight() - 1 - j,i).GetType() >= WALL){
-				glColor3f(0.8,0.8,0.8);
+			if(map->GetCell(map->GetHeight() - 1 - j,i).IsType(WALL)){
+				glColor3f(red/max,green/max,blue/max);
 				glBegin(GL_QUADS);
 
 				glVertex2i(i*WIDTH/map->GetWidth(), j*HEIGHT/map->GetHeight());
@@ -468,7 +531,6 @@ void keyboard(unsigned char c, int x, int y){
 
 }
 
-
 int main(int argc, char *argv[]){ // g++ -o pacman pacman.cc -lglut -lGLU -lGL -lm
  	int w, h;
 
@@ -478,25 +540,30 @@ int main(int argc, char *argv[]){ // g++ -o pacman pacman.cc -lglut -lGLU -lGL -
 	   {
 	    w = atoi(argv[1]);
 	    h = atoi(argv[2]);
+
+	    if(w < MIN_CELLS_WIDTH || h < MIN_CELLS_HEIGHT || w%2 == 0){
+			w = h = 0;
+	    }
 	   }
 
 	 if(!w || !h)
 	   {
-	    w = 31;
-	    h = 28;
+	    w = ESTANDARD_CELLS_WIDTH;
+	    h = ESTANDARD_CELLS_HEIGHT;
 	   }
+
+   if(w > 100 && h > 100) wallProbDecrease = 5;
+   else if(w > 50 && h > 50) wallProbDecrease = 10; 
 
     map = new Map(w, h);
     map->initialize();
     map->printMap();
 
-    
-
     glutInit(&argc, argv);
 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB); 
 	glutInitWindowPosition(50,50);
 	glutInitWindowSize(WIDTH,HEIGHT);
-	glutCreateWindow("PAC MAN");
+	glutCreateWindow(WINDOW_NAME);
 
 	glutDisplayFunc(display);
 	glutKeyboardFunc(keyboard);
