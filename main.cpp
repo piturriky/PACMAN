@@ -49,6 +49,13 @@
 #define PROBABILITY_WALL_UNIQUE_COL 50
 #define INITIAL_WALL_PROBABILITY 80
 
+//FOOD PAINT CELL INCREMENT
+#define FOOD_INCREMENT 0.4
+
+//PARTICLES STATES
+#define QUIET 0
+#define MOVE 1
+
 //VARIABLES
 int wallProbDecrease = 20;
 
@@ -158,6 +165,10 @@ void display(){
 	int i,j;
 	int red, green, blue;
 	float max = 255.0f;
+	float cellWidth, cellHeight;
+
+	cellWidth = WIDTH/map->GetWidth();
+	cellHeight = HEIGHT/map->GetHeight();
 
 	getRandoomWallColor(&red,&green,&blue);
 
@@ -170,10 +181,23 @@ void display(){
 				glColor3f(red/max,green/max,blue/max);
 				glBegin(GL_QUADS);
 
-				glVertex2i(i*WIDTH/map->GetWidth(), j*HEIGHT/map->GetHeight());
-				glVertex2i((i+1)*WIDTH/map->GetWidth(), j*HEIGHT/map->GetHeight());
-				glVertex2i((i+1)*WIDTH/map->GetWidth(), (j+1)*HEIGHT/map->GetHeight());
-				glVertex2i(i*WIDTH/map->GetWidth(), (j+1)*HEIGHT/map->GetHeight());
+				glVertex2i(i*cellWidth, j*cellHeight);
+				glVertex2i((i+1)*cellWidth, j*cellHeight);
+				glVertex2i((i+1)*cellWidth, (j+1)*cellHeight);
+				glVertex2i(i*cellWidth, (j+1)*cellHeight);
+
+				glEnd();
+			}
+			else if((i < map->GetWidth()/2 - CENTERBOX/2 || i > map->GetWidth()/2 + CENTERBOX/2
+				|| j < map->GetHeight()/2 - CENTERBOX/2 || j > map->GetHeight()/2 + CENTERBOX/2 - 1) && map->GetCell(map->GetHeight() - 1 - j,i).HasFood())
+			{	//OUT OF CENTER BOX
+				glColor3f(1.0,1.0,1.0);
+				glBegin(GL_QUADS);
+
+				glVertex2i((i+FOOD_INCREMENT)*cellWidth, (j+FOOD_INCREMENT)*cellHeight);
+				glVertex2i((i+1-FOOD_INCREMENT)*cellWidth, (j+FOOD_INCREMENT)*cellHeight);
+				glVertex2i((i+1-FOOD_INCREMENT)*cellWidth, (j+1-FOOD_INCREMENT)*cellHeight);
+				glVertex2i((i+FOOD_INCREMENT)*cellWidth, (j+1-FOOD_INCREMENT)*cellHeight);
 
 				glEnd();
 			}

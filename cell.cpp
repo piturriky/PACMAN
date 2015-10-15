@@ -3,6 +3,7 @@ class Cell{
 		Cell(){
 			type = EMPTY;
 			activeWall = false;
+			hasFood = true;
 		}
 		~Cell(){}
 		bool IsType(int t){
@@ -23,7 +24,14 @@ class Cell{
 		void SetActive(bool a){
 			activeWall = a;
 		}
+		bool HasFood(){
+			return hasFood;
+		}
+		void EatFood(){
+			hasFood = false;
+		}
 	private:
 		int type;
 		bool activeWall;
+		bool hasFood;
 };
