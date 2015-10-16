@@ -1,5 +1,8 @@
 class Map{
 	public:
+
+	  int red, green, blue;//maze color
+
       Map(int w, int h){
       	width = w;
       	if (w % 2 == 0){
@@ -15,6 +18,7 @@ class Map{
 	    }
 
 	    srand(time(NULL));
+	    getRandoomWallColor();
      }
 
      ~Map(){}
@@ -67,6 +71,52 @@ class Map{
 
      Cell **cells;
 
+	 void getRandoomWallColor(){
+
+		int randVal = rand() % 200 + 200;
+		int max = 255;
+		int val;
+
+		switch(rand() % 3){
+			case 0:
+			{
+				red = 0;
+				if(randVal < max) green = rand() % randVal;
+				else green = rand() % max;
+				
+				randVal -= green;
+
+				if(randVal < max) blue = rand() % randVal;
+				else blue = rand() % max;
+				break;
+			}
+			case 1:
+			{
+				green = 0;
+				if(randVal < max) red = rand() % randVal;
+				else red = rand() % max;
+				
+				randVal -= red;
+
+				if(randVal < max) blue = rand() % randVal;
+				else blue = rand() % max;
+				break;
+			}
+			case 2:
+			{
+				blue = 0;
+				if(randVal < max) green = rand() % randVal;
+				else green = rand() % max;
+				
+				randVal -= green;
+
+				if(randVal < max) red = rand() % randVal;
+				else red = rand() % max;
+				break;
+			}
+		}
+	}
+
      void InsertFixedPositions(){
 		for(int i=0;i<height;i++){
 	    	for(int j=0;j<width;j++){
@@ -80,7 +130,7 @@ class Map{
 				}else if((j == width/2 - CENTERBOX/2) && i > height/2 - CENTERBOX/2 && i < height/2 + CENTERBOX/2 + 1){
 					//LEFT WALL CENTER BOX
 					cells[i][j].SetType(WALL);
-				}else if(i == height/2 - CENTERBOX/2 && j == width/2){
+				}else if(i == height/2 + CENTERBOX/2 && j == width/2){
 					//ENTRANCE
 					cells[i][j].SetType(CORRIDOR);
 				}else if((i == height/2 - CENTERBOX/2 || i == height/2 + CENTERBOX/2) && j >= width/2 - CENTERBOX/2 && j <= width/2){

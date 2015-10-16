@@ -56,17 +56,30 @@
 #define QUIET 0
 #define MOVE 1
 
+//GHOST CELL INCREMENT
+#define GHOST 0.3
+
+//NUMBER OF PARTICLES
+#define NUM_PARTICLES 5
+
 //VARIABLES
 int wallProbDecrease = 20;
+float cellWidth, cellHeight;
 
 #include "cell.cpp"
 #include "map.cpp"
+#include "particle.cpp"
 
 Map *map;
+Particle *pacman;
+long last_t = 0;
 
 void getRandoomWallColor(int *red,int *green,int *blue);
 void display();
-void keyboard(unsigned char c, int x, int y);
+void keyboard(int key, int x, int y);
+void idle();
+void initializeParticles();
+bool CanGo(int x, int y, int direction);
 
 
 int main(int argc, char *argv[]){ // g++ -o pacman pacman.cc -lglut -lGLU -lGL -lm
@@ -97,6 +110,12 @@ int main(int argc, char *argv[]){ // g++ -o pacman pacman.cc -lglut -lGLU -lGL -
     map->initialize();
     map->printMap();
 
+
+	cellWidth = WIDTH/map->GetWidth();
+	cellHeight = HEIGHT/map->GetHeight();
+
+    initializeParticles();
+
     glutInit(&argc, argv);
 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB); 
 	glutInitWindowPosition(50,50);
@@ -104,7 +123,8 @@ int main(int argc, char *argv[]){ // g++ -o pacman pacman.cc -lglut -lGLU -lGL -
 	glutCreateWindow(WINDOW_NAME);
 
 	glutDisplayFunc(display);
-	glutKeyboardFunc(keyboard);
+	glutSpecialFunc(keyboard);
+	glutIdleFunc(idle);
 
 	glMatrixMode(GL_PROJECTION);
 	gluOrtho2D(0,WIDTH-1,0,HEIGHT-1);
@@ -115,70 +135,27 @@ int main(int argc, char *argv[]){ // g++ -o pacman pacman.cc -lglut -lGLU -lGL -
 	return 0;
 }
 
-void getRandoomWallColor(int *red,int *green,int *blue){
-
-	int randVal = rand() % 200 + 200;
-	int max = 255;
-	int val;
-
-	switch(rand() % 3){
-		case 0:
-		{
-			*red = 0;
-			if(randVal < max) *green = rand() % randVal;
-			else *green = rand() % max;
-			
-			randVal -= *green;
-
-			if(randVal < max) *blue = rand() % randVal;
-			else *blue = rand() % max;
-			break;
-		}
-		case 1:
-		{
-			*green = 0;
-			if(randVal < max) *red = rand() % randVal;
-			else *red = rand() % max;
-			
-			randVal -= *red;
-
-			if(randVal < max) *blue = rand() % randVal;
-			else *blue = rand() % max;
-			break;
-		}
-		case 2:
-		{
-			*blue = 0;
-			if(randVal < max) *green = rand() % randVal;
-			else *green = rand() % max;
-			
-			randVal -= *green;
-
-			if(randVal < max) *red = rand() % randVal;
-			else *red = rand() % max;
-			break;
-		}
-	}
+void initializeParticles()
+{
+	pacman = new Particle(0.9, 0.8, 0.1);
+	pacman->SetPosition(map->GetWidth()/2, map->GetHeight()/2 - CENTERBOX/2 - 1);    
 }
 
 void display(){
 	int i,j;
-	int red, green, blue;
 	float max = 255.0f;
 	float cellWidth, cellHeight;
 
 	cellWidth = WIDTH/map->GetWidth();
 	cellHeight = HEIGHT/map->GetHeight();
 
-	getRandoomWallColor(&red,&green,&blue);
-
 	glClearColor(0.0,0.0,0.0,0.0);
 	glClear(GL_COLOR_BUFFER_BIT);
 
 	for(i=0;i<map->GetWidth();i++){
 		for(j=0;j<map->GetHeight();j++){
-			if(map->GetCell(map->GetHeight() - 1 - j,i).IsType(WALL)){
-				glColor3f(red/max,green/max,blue/max);
+			if(map->GetCell(j,i).IsType(WALL)){/*map->GetHeight() - 1 - */
+				glColor3f(map->red/max,map->green/max,map->blue/max);
 				glBegin(GL_QUADS);
 
 				glVertex2i(i*cellWidth, j*cellHeight);
@@ -203,9 +180,77 @@ void display(){
 			}
 		}
 	}
+	pacman->draw();
+
 	glutSwapBuffers();
 }
 
-void keyboard(unsigned char c, int x, int y){
+void keyboard(int key, int x, int y){
+	switch(key)
+	{
+		case GLUT_KEY_UP:
+			pacman->SetNewDirection(UP);
+			break;
+		case GLUT_KEY_DOWN:
+			pacman->SetNewDirection(DOWN);
+			break;
+		case GLUT_KEY_RIGHT:
+			pacman->SetNewDirection(RIGHT);
+			break;
+		case GLUT_KEY_LEFT:
+			pacman->SetNewDirection(LEFT);
+			break;
 
+	}
+}
+
+void idle()
+{
+  long t;	
+
+
+  t=glutGet(GLUT_ELAPSED_TIME); 
+
+  if(last_t==0)
+    last_t=t;
+  else
+    {
+      pacman->Integrate(t-last_t);
+      last_t=t;
+    }
+  if(pacman->GetState() == QUIET)
+  {
+  	 if(pacman->GetNewDirection() >= 0 && CanGo(pacman->GetX(), pacman->GetY(), pacman->GetNewDirection()))
+  	 {
+  	 	pacman->SetCurrentDirection(pacman->GetNewDirection());
+  	 	pacman->SetNewDirection(-1);
+  	 }
+  	 if(CanGo(pacman->GetX(), pacman->GetY(), pacman->GetCurrentDirection()))
+  	 {
+  	 	switch(pacman->GetCurrentDirection())
+	  	 {
+	  	 	case UP:
+	  	 		pacman->InitMovement(pacman->GetX(), pacman->GetY() + 1, 1000);
+	  	 		break;
+	  	 	case DOWN:
+	  	 		pacman->InitMovement(pacman->GetX(), pacman->GetY() - 1, 1000);
+	  	 		break;
+	  	 	case RIGHT:
+	  	 		pacman->InitMovement(pacman->GetX() + 1, pacman->GetY(), 1000);
+	  	 		break;
+	  	 	case LEFT:
+	  	 		pacman->InitMovement(pacman->GetX() - 1, pacman->GetY() + 1, 1000);
+	  	 		break;
+	  	 }
+  	 }
+  	 
+  }
+
+
+  glutPostRedisplay();
+}
+
+bool CanGo(int x, int y, int direction)
+{
+	return true;
 }
