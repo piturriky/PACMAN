@@ -72,8 +72,10 @@ class Particle{
 			}
 			else if(state == MOVE && t >= time_remaining)
 			{
-				x = x + vx*time_remaining;
-				y = y + vy*time_remaining;
+				x = round(x + vx*time_remaining);
+				y = round(y + vy*time_remaining);
+
+				printf("%f, %f", x, y);
 
 				state = QUIET;
 			}

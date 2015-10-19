@@ -19,6 +19,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <GL/glut.h>
+#include <math.h>
 
 #define WINDOW_NAME "PAC MAN"
 
@@ -35,6 +36,7 @@
 #define WALL 1
 #define EMPTY -1
 #define MIRROR -2
+#define UNREACHABLE -3
 
 #define CENTERBOX 7
 
@@ -61,6 +63,9 @@
 
 //NUMBER OF PARTICLES
 #define NUM_PARTICLES 5
+
+//TIME TO MOVE
+#define TIMETOMOVE 500
 
 //VARIABLES
 int wallProbDecrease = 20;
@@ -109,6 +114,7 @@ int main(int argc, char *argv[]){ // g++ -o pacman pacman.cc -lglut -lGLU -lGL -
     map = new Map(w, h);
     map->initialize();
     map->printMap();
+	printf("EII");
 
 
 	cellWidth = WIDTH/map->GetWidth();
@@ -154,7 +160,7 @@ void display(){
 
 	for(i=0;i<map->GetWidth();i++){
 		for(j=0;j<map->GetHeight();j++){
-			if(map->GetCell(j,i).IsType(WALL)){/*map->GetHeight() - 1 - */
+			if(map->GetCell(i, j).IsType(WALL)){/*map->GetHeight() - 1 - */
 				glColor3f(map->red/max,map->green/max,map->blue/max);
 				glBegin(GL_QUADS);
 
@@ -166,7 +172,7 @@ void display(){
 				glEnd();
 			}
 			else if((i < map->GetWidth()/2 - CENTERBOX/2 || i > map->GetWidth()/2 + CENTERBOX/2
-				|| j < map->GetHeight()/2 - CENTERBOX/2 || j > map->GetHeight()/2 + CENTERBOX/2 - 1) && map->GetCell(map->GetHeight() - 1 - j,i).HasFood())
+				|| j < map->GetHeight()/2 - CENTERBOX/2 || j > map->GetHeight()/2 + CENTERBOX/2 - 1) && map->GetCell(i, map->GetHeight() - 1 - j).HasFood())
 			{	//OUT OF CENTER BOX
 				glColor3f(1.0,1.0,1.0);
 				glBegin(GL_QUADS);
@@ -230,16 +236,16 @@ void idle()
   	 	switch(pacman->GetCurrentDirection())
 	  	 {
 	  	 	case UP:
-	  	 		pacman->InitMovement(pacman->GetX(), pacman->GetY() + 1, 1000);
+	  	 		pacman->InitMovement(pacman->GetX(), pacman->GetY() + 1, TIMETOMOVE);
 	  	 		break;
 	  	 	case DOWN:
-	  	 		pacman->InitMovement(pacman->GetX(), pacman->GetY() - 1, 1000);
+	  	 		pacman->InitMovement(pacman->GetX(), pacman->GetY() - 1, TIMETOMOVE);
 	  	 		break;
 	  	 	case RIGHT:
-	  	 		pacman->InitMovement(pacman->GetX() + 1, pacman->GetY(), 1000);
+	  	 		pacman->InitMovement(pacman->GetX() + 1, pacman->GetY(), TIMETOMOVE);
 	  	 		break;
 	  	 	case LEFT:
-	  	 		pacman->InitMovement(pacman->GetX() - 1, pacman->GetY() + 1, 1000);
+	  	 		pacman->InitMovement(pacman->GetX() - 1, pacman->GetY(), TIMETOMOVE);
 	  	 		break;
 	  	 }
   	 }
@@ -252,5 +258,21 @@ void idle()
 
 bool CanGo(int x, int y, int direction)
 {
-	return true;
+	switch(direction)
+	{
+		case UP:
+			printf("UP %i\n", map->GetCell(x, y + 1).GetType());
+			return map->GetCell(x, y + 1).IsType(CORRIDOR);
+		case DOWN:
+			printf("DOWN %i\n", map->GetCell(x, y - 1).GetType());
+			return map->GetCell(x, y - 1).IsType(CORRIDOR);
+		case RIGHT:
+			printf("RIGHT %i\n", map->GetCell(x + 1, y).GetType());
+			return map->GetCell(x + 1, y).IsType(CORRIDOR);
+		case LEFT:
+			printf("LEFT %i\n", map->GetCell(x - 1, y).GetType());
+			return map->GetCell(x - 1, y).IsType(CORRIDOR);
+
+	}
+	return false;
 }

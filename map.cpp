@@ -43,7 +43,7 @@ class Map{
      }
 
      Cell GetCell(int x, int y){
-     	return cells[x][y];
+     	return cells[y][x];
      }
 
      void printMap(){
@@ -205,8 +205,11 @@ class Map{
 		}
 		for(int i = height/2 - CENTERBOX/2 - 1; i < height/2 + CENTERBOX/2 + 2; i++){
 			for(int j = width/2 - CENTERBOX/2 - 1; j < width/2 + 1; j++){
-				if(cells[i][j].IsType(EMPTY))
+				if(cells[i][j].IsType(EMPTY) && (i == height/2 - CENTERBOX/2 - 1 || i == height/2 + CENTERBOX/2 + 1
+												|| j == width/2 - CENTERBOX/2 - 1))
 					cells[i][j].SetType(CORRIDOR);
+				else if(cells[i][j].IsType(EMPTY))
+					cells[i][j].SetType(UNREACHABLE);
 			}
 		}
      }
