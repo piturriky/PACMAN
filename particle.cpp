@@ -5,9 +5,10 @@ class Particle{
 			this->r = r;
 			this->g = g;
 			this->b = b;
-			state = QUIET;
+			this->state = QUIET;
 			this->new_direction = -1;
 			this->current_direction = -1;
+			this->canGoOut = false;
 		}
 		~Particle(){}
 		
@@ -62,6 +63,14 @@ class Particle{
 			return state;
 		}
 
+		bool CanGoOut(){
+			return canGoOut;
+		}
+
+		void GoOut(){
+			canGoOut = true;
+		}
+
 		void Integrate(long t)
 		{
 			if(state == MOVE && t < time_remaining)
@@ -75,15 +84,12 @@ class Particle{
 				x = round(x + vx*time_remaining);
 				y = round(y + vy*time_remaining);
 
-				printf("%f, %f", x, y);
-
 				state = QUIET;
 			}
 		}
 
 		void draw()
 		{
-
 			glColor3f(r,g,b);
 			glBegin(GL_QUADS);
 			glVertex2i((x+GHOST)*cellWidth, (y+GHOST)*cellHeight);
@@ -99,4 +105,5 @@ class Particle{
 		long time_remaining;
 		float r, g, b; //RGB color
 		int new_direction, current_direction;
+		bool canGoOut;
 };

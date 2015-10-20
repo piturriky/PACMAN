@@ -20,6 +20,8 @@
 #include <time.h>
 #include <GL/glut.h>
 #include <math.h>
+#include <iostream>
+using namespace std;
 
 #define WINDOW_NAME "PAC MAN"
 
@@ -36,7 +38,7 @@
 #define WALL 1
 #define EMPTY -1
 #define MIRROR -2
-#define UNREACHABLE -3
+#define UNREACHABLE 2
 
 #define CENTERBOX 7
 
@@ -54,15 +56,15 @@
 //FOOD PAINT CELL INCREMENT
 #define FOOD_INCREMENT 0.4
 
+//GHOST CELL INCREMENT
+#define GHOST 0.3
+
 //PARTICLES STATES
 #define QUIET 0
 #define MOVE 1
 
-//GHOST CELL INCREMENT
-#define GHOST 0.3
-
 //NUMBER OF PARTICLES
-#define NUM_PARTICLES 5
+#define NUM_GHOST 3
 
 //TIME TO MOVE
 #define TIMETOMOVE 500
@@ -77,7 +79,10 @@ float cellWidth, cellHeight;
 
 Map *map;
 Particle *pacman;
+Particle *ghosts[NUM_GHOST];
 long last_t = 0;
+
+int points = 0;
 
 void getRandoomWallColor(int *red,int *green,int *blue);
 void display();
@@ -85,9 +90,10 @@ void keyboard(int key, int x, int y);
 void idle();
 void initializeParticles();
 bool CanGo(int x, int y, int direction);
+int GetGhostDirection(int x, int y, int direction);
 
 
-int main(int argc, char *argv[]){ // g++ -o pacman pacman.cc -lglut -lGLU -lGL -lm
+int main(int argc, char *argv[]){ // g++ -o pacman pacman->cc -lglut -lGLU -lGL -lm
  	int w, h;
 
  	w = h = 0;
@@ -114,8 +120,6 @@ int main(int argc, char *argv[]){ // g++ -o pacman pacman.cc -lglut -lGLU -lGL -
     map = new Map(w, h);
     map->initialize();
     map->printMap();
-	printf("EII");
-
 
 	cellWidth = WIDTH/map->GetWidth();
 	cellHeight = HEIGHT/map->GetHeight();
@@ -144,7 +148,14 @@ int main(int argc, char *argv[]){ // g++ -o pacman pacman.cc -lglut -lGLU -lGL -
 void initializeParticles()
 {
 	pacman = new Particle(0.9, 0.8, 0.1);
-	pacman->SetPosition(map->GetWidth()/2, map->GetHeight()/2 - CENTERBOX/2 - 1);    
+	pacman->SetPosition(map->GetWidth()/2, map->GetHeight()/2 - CENTERBOX/2 - 1); 
+
+	for(int i = 0; i< NUM_GHOST; i++){
+		ghosts[i] = new Particle(1,0,0);
+		ghosts[i]->SetPosition(map->GetWidth()/2, map->GetHeight()/2);
+	}   
+
+	ghosts[0]->GoOut();
 }
 
 void display(){
@@ -160,7 +171,7 @@ void display(){
 
 	for(i=0;i<map->GetWidth();i++){
 		for(j=0;j<map->GetHeight();j++){
-			if(map->GetCell(i, j).IsType(WALL)){/*map->GetHeight() - 1 - */
+			if(map->GetCell(i, j).IsType(WALL)){
 				glColor3f(map->red/max,map->green/max,map->blue/max);
 				glBegin(GL_QUADS);
 
@@ -172,7 +183,7 @@ void display(){
 				glEnd();
 			}
 			else if((i < map->GetWidth()/2 - CENTERBOX/2 || i > map->GetWidth()/2 + CENTERBOX/2
-				|| j < map->GetHeight()/2 - CENTERBOX/2 || j > map->GetHeight()/2 + CENTERBOX/2 - 1) && map->GetCell(i, map->GetHeight() - 1 - j).HasFood())
+				|| j < map->GetHeight()/2 - CENTERBOX/2 || j > map->GetHeight()/2 + CENTERBOX/2) && map->HasFood(i, j))
 			{	//OUT OF CENTER BOX
 				glColor3f(1.0,1.0,1.0);
 				glBegin(GL_QUADS);
@@ -187,6 +198,9 @@ void display(){
 		}
 	}
 	pacman->draw();
+	for(int i = 0; i< NUM_GHOST; i++){
+		ghosts[i]->draw();
+	}
 
 	glutSwapBuffers();
 }
@@ -222,10 +236,19 @@ void idle()
   else
     {
       pacman->Integrate(t-last_t);
+      for(int i = 0; i < NUM_GHOST; i++){
+      	ghosts[i]->Integrate(t-last_t);
+      }
       last_t=t;
     }
+
+  // PACMAN
   if(pacman->GetState() == QUIET)
   {
+  	if(map->HasFood(pacman->GetX(),pacman->GetY())){
+  		map->EatFood(pacman->GetX(),pacman->GetY());
+  		points++;		
+  	}
   	 if(pacman->GetNewDirection() >= 0 && CanGo(pacman->GetX(), pacman->GetY(), pacman->GetNewDirection()))
   	 {
   	 	pacman->SetCurrentDirection(pacman->GetNewDirection());
@@ -252,27 +275,129 @@ void idle()
   	 
   }
 
+  // GHOSTS
+	  for(int i = 0; i < NUM_GHOST; i++){
+	  	if(ghosts[i]->GetState() == QUIET){
 
-  glutPostRedisplay();
-}
+	  		if(ghosts[i]->CanGoOut()){
+	  			ghosts[i]->SetNewDirection(GetGhostDirectionToExit(ghosts[i]->GetX(), ghosts[i]->GetY(),ghosts[i]->GetCurrentDirection()));
+	  		}else{
+	  			ghosts[i]->SetNewDirection(GetGhostDirection(ghosts[i]->GetX(), ghosts[i]->GetY(),ghosts[i]->GetCurrentDirection()));
+	  		}
 
-bool CanGo(int x, int y, int direction)
+	  		if(ghosts[i]->GetNewDirection() >= 0 && CanGo(ghosts[i]->GetX(), ghosts[i]->GetY(), ghosts[i]->GetNewDirection()))
+		  	 {
+		  	 	ghosts[i]->SetCurrentDirection(ghosts[i]->GetNewDirection());
+		  	 	ghosts[i]->SetNewDirection(-1);
+		  	 }	
+
+	  		if(CanGo(ghosts[i]->GetX(), ghosts[i]->GetY(), ghosts[i]->GetCurrentDirection()))
+		  	 {
+		  	 	switch(ghosts[i]->GetCurrentDirection())
+			  	 {
+			  	 	
+			  	 	case UP:
+			  	 		ghosts[i]->InitMovement(ghosts[i]->GetX(), ghosts[i]->GetY() + 1, TIMETOMOVE);
+			  	 		break;
+			  	 	case DOWN:
+			  	 		ghosts[i]->InitMovement(ghosts[i]->GetX(), ghosts[i]->GetY() - 1, TIMETOMOVE);
+			  	 		break;
+			  	 	case RIGHT:
+			  	 		ghosts[i]->InitMovement(ghosts[i]->GetX() + 1, ghosts[i]->GetY(), TIMETOMOVE);
+			  	 		break;
+			  	 	case LEFT:
+			  	 		ghosts[i]->InitMovement(ghosts[i]->GetX() - 1, ghosts[i]->GetY(), TIMETOMOVE);
+			  	 		break;
+			  	 }
+		  	 }
+	  	}
+	  }
+
+	  glutPostRedisplay();
+	}
+
+bool CanGo(int x, int y, int direction) 
 {
 	switch(direction)
 	{
 		case UP:
-			printf("UP %i\n", map->GetCell(x, y + 1).GetType());
+			//printf("UP %i\n", map->GetCell(x, y + 1).GetType());
+			//if(canGoOut){
+			//	return map->GetCell(x, y + 1).IsType(CORRIDOR) || map->GetCell(x, y + 1).IsType(UNREACHABLE);
+			//}
 			return map->GetCell(x, y + 1).IsType(CORRIDOR);
 		case DOWN:
-			printf("DOWN %i\n", map->GetCell(x, y - 1).GetType());
+			//printf("DOWN %i\n", map->GetCell(x, y - 1).GetType());
 			return map->GetCell(x, y - 1).IsType(CORRIDOR);
 		case RIGHT:
-			printf("RIGHT %i\n", map->GetCell(x + 1, y).GetType());
+			//printf("RIGHT %i\n", map->GetCell(x + 1, y).GetType());
 			return map->GetCell(x + 1, y).IsType(CORRIDOR);
 		case LEFT:
-			printf("LEFT %i\n", map->GetCell(x - 1, y).GetType());
+			//printf("LEFT %i\n", map->GetCell(x - 1, y).GetType());
 			return map->GetCell(x - 1, y).IsType(CORRIDOR);
 
 	}
 	return false;
+}
+
+int GetGhostDirection(int x, int y, int direction){
+	switch(direction){
+		case UP:
+			if(pacman->GetY() < y){
+				return DOWN;
+			}
+
+			if(pacman->GetX() > x){
+				return RIGHT;
+			}else if(pacman->GetX() < x){
+				return LEFT;
+			}
+
+			return UP;
+
+		case DOWN:
+			if(pacman->GetY() > y){
+				return UP;
+			}
+
+			if(pacman->GetX() > x){
+				return RIGHT;
+			}else if(pacman->GetX() < x){
+				return LEFT;
+			}
+
+			return DOWN;
+
+		case LEFT:
+			if(pacman->GetX() > x){
+				return RIGHT;
+			}
+
+			if(pacman->GetY() > y){
+				return UP;
+			}else if(pacman->GetY() < y){
+				return DOWN;
+			}
+
+			return LEFT;
+
+		case RIGHT:
+			if(pacman->GetX() < x){
+				return LEFT;
+			}
+
+			if(pacman->GetY() > y){
+				return UP;
+			}else if(pacman->GetY() < y){
+				return DOWN;
+			}
+
+			return RIGHT;
+		default:
+			return LEFT;
+	}
+}
+
+int GetGhostDirectionToExit(int x, int y){
+
 }

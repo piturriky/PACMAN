@@ -4,6 +4,7 @@ class Cell{
 			type = EMPTY;
 			activeWall = false;
 			hasFood = true;
+			printf("NEW CELL\n");
 		}
 		~Cell(){}
 		bool IsType(int t){
@@ -27,9 +28,10 @@ class Cell{
 		bool HasFood(){
 			return hasFood;
 		}
-		void EatFood(){
-			hasFood = false;
+		void EatFood(){	
+			this->hasFood = false;
 		}
+		
 	private:
 		int type;
 		bool activeWall;

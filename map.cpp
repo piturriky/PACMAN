@@ -50,7 +50,7 @@ class Map{
     	int i,j;
 		for(i=0;i<height;i++){
 	    	for(j=0;j<width;j++){
-				if(cells[i][j].IsType(WALL)) printf("%i", cells[i][j].GetType());
+				if(cells[i][j].GetType()>=WALL) printf("%i", cells[i][j].GetType());
 				else if(cells[i][j].IsType(CORRIDOR))printf("·");
 				else if(cells[i][j].IsType(EMPTY))printf(" ");
 			}
@@ -62,6 +62,14 @@ class Map{
      	InsertFixedPositions();
      	FillMap();
      	DoMirrorMap();
+     }
+
+     void EatFood(int x, int y){
+     	cells[y][x].EatFood();
+     }
+
+     bool HasFood(int x, int y){
+     	return cells[y][x].HasFood();
      }
 
    private:
@@ -132,7 +140,7 @@ class Map{
 					cells[i][j].SetType(WALL);
 				}else if(i == height/2 + CENTERBOX/2 && j == width/2){
 					//ENTRANCE
-					cells[i][j].SetType(CORRIDOR);
+					cells[i][j].SetType(UNREACHABLE);
 				}else if((i == height/2 - CENTERBOX/2 || i == height/2 + CENTERBOX/2) && j >= width/2 - CENTERBOX/2 && j <= width/2){
 					//TOP AND BOTTON WALLS
 					cells[i][j].SetType(WALL);
@@ -209,7 +217,7 @@ class Map{
 												|| j == width/2 - CENTERBOX/2 - 1))
 					cells[i][j].SetType(CORRIDOR);
 				else if(cells[i][j].IsType(EMPTY))
-					cells[i][j].SetType(UNREACHABLE);
+					cells[i][j].SetType(CORRIDOR);
 			}
 		}
      }
