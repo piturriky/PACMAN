@@ -19,6 +19,7 @@ class Map{
 
 	    srand(time(NULL));
 	    getRandoomWallColor();
+	    initialMeal = 0;
      }
 
      ~Map(){}
@@ -62,6 +63,7 @@ class Map{
      	InsertFixedPositions();
      	FillMap();
      	DoMirrorMap();
+     	CountMeal();
      }
 
      void EatFood(int x, int y){
@@ -72,12 +74,26 @@ class Map{
      	return cells[y][x].HasFood();
      }
 
+     int GetInitialMeal(){
+     	return initialMeal;
+     }
+
    private:
      int height;
      int width;
      int maxTurns;
+     int initialMeal;
 
      Cell **cells;
+
+     void CountMeal(){
+     	for(int i = 0; i < height; i++){
+     		for(int j = 0; j< width; j++){
+     			if(cells[i][j].GetType() == CORRIDOR ) initialMeal++;
+     		}
+     	}
+     	initialMeal -= (CENTERBOX-2)*(CENTERBOX-2);
+     }
 
 	 void getRandoomWallColor(){
 

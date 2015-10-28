@@ -4,7 +4,6 @@ class Cell{
 			type = EMPTY;
 			activeWall = false;
 			hasFood = true;
-			printf("NEW CELL\n");
 		}
 		~Cell(){}
 		bool IsType(int t){

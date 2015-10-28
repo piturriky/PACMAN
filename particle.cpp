@@ -71,6 +71,10 @@ class Particle{
 			canGoOut = true;
 		}
 
+		void Out(){
+			canGoOut = false;
+		}
+
 		void Integrate(long t)
 		{
 			if(state == MOVE && t < time_remaining)

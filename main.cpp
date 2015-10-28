@@ -66,6 +66,8 @@ using namespace std;
 //NUMBER OF PARTICLES
 #define NUM_GHOST 3
 
+#define INCREMENT_GHOST_TIMER 3
+
 //TIME TO MOVE
 #define TIMETOMOVE 500
 
@@ -83,15 +85,18 @@ Particle *ghosts[NUM_GHOST];
 long last_t = 0;
 
 int points = 0;
+int ghostsTimer = 0;
+int nextGost = 1;
 
 void getRandoomWallColor(int *red,int *green,int *blue);
 void display();
 void keyboard(int key, int x, int y);
 void idle();
 void initializeParticles();
-bool CanGo(int x, int y, int direction);
+bool CanGo(int x, int y, int direction, bool canGoOut);
 int GetGhostDirection(int x, int y, int direction);
-
+int GetGhostDirectionToExit(int x, int y);
+void Eat();
 
 int main(int argc, char *argv[]){ // g++ -o pacman pacman->cc -lglut -lGLU -lGL -lm
  	int w, h;
@@ -121,6 +126,9 @@ int main(int argc, char *argv[]){ // g++ -o pacman pacman->cc -lglut -lGLU -lGL 
     map->initialize();
     map->printMap();
 
+    printf("%i\n",map->GetInitialMeal());
+    ghostsTimer = map->GetInitialMeal()/NUM_GHOST/INCREMENT_GHOST_TIMER;
+	
 	cellWidth = WIDTH/map->GetWidth();
 	cellHeight = HEIGHT/map->GetHeight();
 
@@ -161,10 +169,10 @@ void initializeParticles()
 void display(){
 	int i,j;
 	float max = 255.0f;
-	float cellWidth, cellHeight;
+	//float cellWidth, cellHeight;
 
-	cellWidth = WIDTH/map->GetWidth();
-	cellHeight = HEIGHT/map->GetHeight();
+	//cellWidth = WIDTH/map->GetWidth();
+	//cellHeight = HEIGHT/map->GetHeight();
 
 	glClearColor(0.0,0.0,0.0,0.0);
 	glClear(GL_COLOR_BUFFER_BIT);
@@ -220,14 +228,12 @@ void keyboard(int key, int x, int y){
 		case GLUT_KEY_LEFT:
 			pacman->SetNewDirection(LEFT);
 			break;
-
 	}
 }
 
 void idle()
 {
   long t;	
-
 
   t=glutGet(GLUT_ELAPSED_TIME); 
 
@@ -245,16 +251,14 @@ void idle()
   // PACMAN
   if(pacman->GetState() == QUIET)
   {
-  	if(map->HasFood(pacman->GetX(),pacman->GetY())){
-  		map->EatFood(pacman->GetX(),pacman->GetY());
-  		points++;		
-  	}
-  	 if(pacman->GetNewDirection() >= 0 && CanGo(pacman->GetX(), pacman->GetY(), pacman->GetNewDirection()))
+  	if(map->HasFood(pacman->GetX(),pacman->GetY()))Eat();
+
+  	 if(pacman->GetNewDirection() >= 0 && CanGo(pacman->GetX(), pacman->GetY(), pacman->GetNewDirection(),pacman->CanGoOut()))
   	 {
   	 	pacman->SetCurrentDirection(pacman->GetNewDirection());
   	 	pacman->SetNewDirection(-1);
   	 }
-  	 if(CanGo(pacman->GetX(), pacman->GetY(), pacman->GetCurrentDirection()))
+  	 if(CanGo(pacman->GetX(), pacman->GetY(), pacman->GetCurrentDirection(),pacman->CanGoOut()))
   	 {
   	 	switch(pacman->GetCurrentDirection())
 	  	 {
@@ -279,19 +283,31 @@ void idle()
 	  for(int i = 0; i < NUM_GHOST; i++){
 	  	if(ghosts[i]->GetState() == QUIET){
 
-	  		if(ghosts[i]->CanGoOut()){
-	  			ghosts[i]->SetNewDirection(GetGhostDirectionToExit(ghosts[i]->GetX(), ghosts[i]->GetY(),ghosts[i]->GetCurrentDirection()));
-	  		}else{
+	  		// Going out management
+	  		// if ghost position = door -> new direction = UP and ghost is out
+	  		if(map->GetCell(ghosts[i]->GetX(),ghosts[i]->GetY()).GetType()==UNREACHABLE){
+	  			//ghosts[i]->SetNewDirection(UP);
+	  			ghosts[i]->Out();
+	  			//printf("Out: %i, %i, %i \n",ghosts[i]->GetX(),ghosts[i]->GetY(), ghosts[i]->GetNewDirection());
+	  		}
+	  		// if ghost is in box -> can go out -> get exit way
+	  		else if(ghosts[i]->CanGoOut()){
+	  			//printf("Going out: %i, %i\t",ghosts[i]->GetX(),ghosts[i]->GetY());
+	  			ghosts[i]->SetNewDirection(GetGhostDirectionToExit(ghosts[i]->GetX(), ghosts[i]->GetY()));
+	  		}
+	  		// ghost is out, normal behavior
+	  		else{
 	  			ghosts[i]->SetNewDirection(GetGhostDirection(ghosts[i]->GetX(), ghosts[i]->GetY(),ghosts[i]->GetCurrentDirection()));
+	  			//printf("OUT: %i, %i, %i \n",ghosts[i]->GetX(),ghosts[i]->GetY(), ghosts[i]->GetNewDirection());
 	  		}
 
-	  		if(ghosts[i]->GetNewDirection() >= 0 && CanGo(ghosts[i]->GetX(), ghosts[i]->GetY(), ghosts[i]->GetNewDirection()))
+	  		if(ghosts[i]->GetNewDirection() >= 0 && CanGo(ghosts[i]->GetX(), ghosts[i]->GetY(), ghosts[i]->GetNewDirection(),ghosts[i]->CanGoOut()))
 		  	 {
 		  	 	ghosts[i]->SetCurrentDirection(ghosts[i]->GetNewDirection());
 		  	 	ghosts[i]->SetNewDirection(-1);
 		  	 }	
 
-	  		if(CanGo(ghosts[i]->GetX(), ghosts[i]->GetY(), ghosts[i]->GetCurrentDirection()))
+	  		if(CanGo(ghosts[i]->GetX(), ghosts[i]->GetY(), ghosts[i]->GetCurrentDirection(),ghosts[i]->CanGoOut()))
 		  	 {
 		  	 	switch(ghosts[i]->GetCurrentDirection())
 			  	 {
@@ -316,15 +332,15 @@ void idle()
 	  glutPostRedisplay();
 	}
 
-bool CanGo(int x, int y, int direction) 
+bool CanGo(int x, int y, int direction, bool canGoOut) 
 {
 	switch(direction)
 	{
 		case UP:
 			//printf("UP %i\n", map->GetCell(x, y + 1).GetType());
-			//if(canGoOut){
-			//	return map->GetCell(x, y + 1).IsType(CORRIDOR) || map->GetCell(x, y + 1).IsType(UNREACHABLE);
-			//}
+			if(canGoOut){
+				return map->GetCell(x, y + 1).IsType(CORRIDOR) || map->GetCell(x, y + 1).IsType(UNREACHABLE);
+			}
 			return map->GetCell(x, y + 1).IsType(CORRIDOR);
 		case DOWN:
 			//printf("DOWN %i\n", map->GetCell(x, y - 1).GetType());
@@ -399,5 +415,20 @@ int GetGhostDirection(int x, int y, int direction){
 }
 
 int GetGhostDirectionToExit(int x, int y){
+	if(x>map->GetWidth()/2){
+		return LEFT;
+	}else if(x < map->GetWidth()/2){
+		return RIGHT;
+	}
+	return UP;
+}
 
+void Eat(){
+	map->EatFood(pacman->GetX(),pacman->GetY());
+	points++;
+	if(points % ghostsTimer == 0 && nextGost < NUM_GHOST){
+		ghosts[nextGost]->GoOut();
+		nextGost++;
+	} 
+	if(points % 10 == 0)printf("Points: %i\n", points);	
 }
