@@ -286,7 +286,7 @@ void idle()
 	  		// Going out management
 	  		// if ghost position = door -> new direction = UP and ghost is out
 	  		if(map->GetCell(ghosts[i]->GetX(),ghosts[i]->GetY()).GetType()==UNREACHABLE){
-	  			//ghosts[i]->SetNewDirection(UP);
+	  			ghosts[i]->SetCurrentDirection(UP);
 	  			ghosts[i]->Out();
 	  			//printf("Out: %i, %i, %i \n",ghosts[i]->GetX(),ghosts[i]->GetY(), ghosts[i]->GetNewDirection());
 	  		}
@@ -294,6 +294,11 @@ void idle()
 	  		else if(ghosts[i]->CanGoOut()){
 	  			//printf("Going out: %i, %i\t",ghosts[i]->GetX(),ghosts[i]->GetY());
 	  			ghosts[i]->SetNewDirection(GetGhostDirectionToExit(ghosts[i]->GetX(), ghosts[i]->GetY()));
+	  		}
+	  		else if(ghosts[i]->LastInBox()){
+	  			ghosts[i]->SetCurrentDirection(-1);
+	  			ghosts[i]->SetNewDirection(-1);
+	  			ghosts[i]->OutBox();
 	  		}
 	  		// ghost is out, normal behavior
 	  		else{
@@ -305,7 +310,7 @@ void idle()
 		  	 {
 		  	 	ghosts[i]->SetCurrentDirection(ghosts[i]->GetNewDirection());
 		  	 	ghosts[i]->SetNewDirection(-1);
-		  	 }	
+		  	 }
 
 	  		if(CanGo(ghosts[i]->GetX(), ghosts[i]->GetY(), ghosts[i]->GetCurrentDirection(),ghosts[i]->CanGoOut()))
 		  	 {
@@ -351,7 +356,6 @@ bool CanGo(int x, int y, int direction, bool canGoOut)
 		case LEFT:
 			//printf("LEFT %i\n", map->GetCell(x - 1, y).GetType());
 			return map->GetCell(x - 1, y).IsType(CORRIDOR);
-
 	}
 	return false;
 }

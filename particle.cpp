@@ -9,6 +9,7 @@ class Particle{
 			this->new_direction = -1;
 			this->current_direction = -1;
 			this->canGoOut = false;
+			this->lastInBox = true;
 		}
 		~Particle(){}
 		
@@ -73,6 +74,15 @@ class Particle{
 
 		void Out(){
 			canGoOut = false;
+			lastInBox = true;
+		}
+
+		bool LastInBox(){
+			return this->lastInBox;
+		}
+
+		void OutBox(){
+			this->lastInBox = false;
 		}
 
 		void Integrate(long t)
@@ -109,5 +119,5 @@ class Particle{
 		long time_remaining;
 		float r, g, b; //RGB color
 		int new_direction, current_direction;
-		bool canGoOut;
+		bool canGoOut, lastInBox;
 };
