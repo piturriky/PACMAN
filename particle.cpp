@@ -112,6 +112,28 @@ class Particle{
 			glVertex2i((x+GHOST)*cellWidth, (y+1-GHOST)*cellHeight);
 			glEnd();
 		}
+
+		int getNextX(){
+			if(state == QUIET) return x;
+			switch(current_direction){
+				case RIGHT:
+					return x + 1;
+				case LEFT:
+					return x - 1;
+			}
+			return x;
+		}
+
+		int getNextY(){
+			if(state == QUIET) return y;
+			switch(current_direction){
+				case UP:
+					return y + 1;
+				case DOWN:
+					return y - 1;
+			}
+			return y;
+		}
 	private:
 		float x, y;
 		float vx, vy;

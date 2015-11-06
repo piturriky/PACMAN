@@ -12,6 +12,9 @@
 *	Addeds:
 *		- Pacman maze will never have dead ends
 *		- Wall's color will be random
+*
+*		- The ghosts will go out of the center box according as the pacman eats a certain amount of food
+		- Basic IA
 */
 
 
@@ -21,6 +24,8 @@
 #include <GL/glut.h>
 #include <math.h>
 #include <iostream>
+#include <utility>
+#include <list>
 using namespace std;
 
 #define WINDOW_NAME "PAC MAN"
@@ -78,6 +83,7 @@ float cellWidth, cellHeight;
 #include "cell.cpp"
 #include "map.cpp"
 #include "particle.cpp"
+#include "state.cpp"
 
 Map *map;
 Particle *pacman;
@@ -97,6 +103,7 @@ bool CanGo(int x, int y, int direction, bool canGoOut);
 int GetGhostDirection(int x, int y, int direction);
 int GetGhostDirectionToExit(int x, int y);
 void Eat();
+void CalculateNewDirections();
 
 int main(int argc, char *argv[]){ // g++ -o pacman pacman->cc -lglut -lGLU -lGL -lm
  	int w, h;
@@ -299,12 +306,14 @@ void idle()
 	  			ghosts[i]->SetCurrentDirection(-1);
 	  			ghosts[i]->SetNewDirection(-1);
 	  			ghosts[i]->OutBox();
+	  		}else if(ghosts[i]->GetNewDirection() < 0){
+	  			CalculateNewDirections();
 	  		}
 	  		// ghost is out, normal behavior
-	  		else{
+	  		/*else{
 	  			ghosts[i]->SetNewDirection(GetGhostDirection(ghosts[i]->GetX(), ghosts[i]->GetY(),ghosts[i]->GetCurrentDirection()));
 	  			//printf("OUT: %i, %i, %i \n",ghosts[i]->GetX(),ghosts[i]->GetY(), ghosts[i]->GetNewDirection());
-	  		}
+	  		}*/
 
 	  		if(ghosts[i]->GetNewDirection() >= 0 && CanGo(ghosts[i]->GetX(), ghosts[i]->GetY(), ghosts[i]->GetNewDirection(),ghosts[i]->CanGoOut()))
 		  	 {
@@ -435,4 +444,15 @@ void Eat(){
 		nextGost++;
 	} 
 	if(points % 10 == 0)printf("Points: %i\n", points);	
+}
+
+void CalculateNewDirections(){
+	pair<int, int> pacmanPair = make_pair(pacman->getNextX(),pacman->getNextY());
+	list<pair<int, int> > ghostsList;
+	for(int i = 0; i < NUM_GHOST; i++){
+		if(ghosts[i]->LastInBox())ghostsList.push_back(make_pair(ghosts[i]->getNextX(),ghosts[i]->getNextY()));
+	}
+	State* state = new State(pacmanPair,ghostsList,map,0);
+
+
 }
