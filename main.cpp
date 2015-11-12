@@ -28,6 +28,8 @@
 #include <list>
 using namespace std;
 
+#define IA_VERSION false
+
 #define WINDOW_NAME "PAC MAN"
 
 #define WIDTH 600
@@ -76,9 +78,18 @@ using namespace std;
 //TIME TO MOVE
 #define TIMETOMOVE 500
 
+#define MAX_F 255.0f
+#define PI 3.1416
+
+#define Y -50
+
+#define GROUND_R 124
+#define GROUND_G 139
+#define GROUND_B 141
+
 //VARIABLES
 int wallProbDecrease = 20;
-float cellWidth, cellHeight;
+float cellWidth, cellHeight,cellDepth;
 
 #include "cell.cpp"
 #include "map.cpp"
@@ -94,9 +105,14 @@ int points = 0;
 int ghostsTimer = 0;
 int nextGost = 1;
 
+/*--- Global variables that determine the viewpoint location ---*/
+int anglealpha = 0;
+int anglebeta = 0;
+
 void getRandoomWallColor(int *red,int *green,int *blue);
 void display();
-void keyboard(int key, int x, int y);
+void keyboardArrows(int key, int x, int y);
+void keyboard(unsigned char c,int x,int y);
 void idle();
 void initializeParticles();
 bool CanGo(int x, int y, int direction, bool canGoOut);
@@ -104,6 +120,9 @@ int GetGhostDirection(int x, int y, int direction);
 int GetGhostDirectionToExit(int x, int y);
 void Eat();
 void CalculateNewDirections();
+void PositionObserver(float alpha,float beta,int radi);
+void printCellQuad(int i, int j);
+void printGroundMap();
 
 int main(int argc, char *argv[]){ // g++ -o pacman pacman->cc -lglut -lGLU -lGL -lm
  	int w, h;
@@ -137,22 +156,28 @@ int main(int argc, char *argv[]){ // g++ -o pacman pacman->cc -lglut -lGLU -lGL 
     ghostsTimer = map->GetInitialMeal()/NUM_GHOST/INCREMENT_GHOST_TIMER;
 	
 	cellWidth = WIDTH/map->GetWidth();
-	cellHeight = HEIGHT/map->GetHeight();
+	cellHeight = HEIGHT/map->GetHeight()*(-1);
+	cellDepth = (cellWidth-cellHeight)/4;
 
     initializeParticles();
 
+    anglealpha = 45;
+    anglebeta = 60;
+
     glutInit(&argc, argv);
-	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB); 
+	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH); 
 	glutInitWindowPosition(50,50);
 	glutInitWindowSize(WIDTH,HEIGHT);
 	glutCreateWindow(WINDOW_NAME);
+	glEnable(GL_DEPTH_TEST);
 
 	glutDisplayFunc(display);
-	glutSpecialFunc(keyboard);
+	glutSpecialFunc(keyboardArrows);
+	glutKeyboardFunc(keyboard);
 	glutIdleFunc(idle);
 
-	glMatrixMode(GL_PROJECTION);
-	gluOrtho2D(0,WIDTH-1,0,HEIGHT-1);
+	//glMatrixMode(GL_PROJECTION);
+	//gluOrtho2D(0,WIDTH-1,0,HEIGHT-1);
 
 	glutMainLoop();
 
@@ -175,32 +200,37 @@ void initializeParticles()
 
 void display(){
 	int i,j;
-	float max = 255.0f;
-	//float cellWidth, cellHeight;
-
-	//cellWidth = WIDTH/map->GetWidth();
-	//cellHeight = HEIGHT/map->GetHeight();
 
 	glClearColor(0.0,0.0,0.0,0.0);
-	glClear(GL_COLOR_BUFFER_BIT);
+	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+
+	glMatrixMode(GL_MODELVIEW);
+	glLoadIdentity();
+
+	PositionObserver(anglealpha,anglebeta,450);
+
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+	glOrtho(-WIDTH*0.6,WIDTH*0.6,-HEIGHT*0.6,HEIGHT*0.6,10,2000);
+
+	glMatrixMode(GL_MODELVIEW);
+
+	glPolygonMode(GL_FRONT,GL_FILL);
+	glPolygonMode(GL_BACK,GL_LINE);
+
+	printGroundMap();
 
 	for(i=0;i<map->GetWidth();i++){
 		for(j=0;j<map->GetHeight();j++){
 			if(map->GetCell(i, j).IsType(WALL)){
-				glColor3f(map->red/max,map->green/max,map->blue/max);
-				glBegin(GL_QUADS);
 
-				glVertex2i(i*cellWidth, j*cellHeight);
-				glVertex2i((i+1)*cellWidth, j*cellHeight);
-				glVertex2i((i+1)*cellWidth, (j+1)*cellHeight);
-				glVertex2i(i*cellWidth, (j+1)*cellHeight);
+				printCellQuad(i,j);
 
-				glEnd();
 			}
 			else if((i < map->GetWidth()/2 - CENTERBOX/2 || i > map->GetWidth()/2 + CENTERBOX/2
 				|| j < map->GetHeight()/2 - CENTERBOX/2 || j > map->GetHeight()/2 + CENTERBOX/2) && map->HasFood(i, j))
 			{	//OUT OF CENTER BOX
-				glColor3f(1.0,1.0,1.0);
+				/*glColor3f(1.0,1.0,1.0);
 				glBegin(GL_QUADS);
 
 				glVertex2i((i+FOOD_INCREMENT)*cellWidth, (j+FOOD_INCREMENT)*cellHeight);
@@ -208,19 +238,20 @@ void display(){
 				glVertex2i((i+1-FOOD_INCREMENT)*cellWidth, (j+1-FOOD_INCREMENT)*cellHeight);
 				glVertex2i((i+FOOD_INCREMENT)*cellWidth, (j+1-FOOD_INCREMENT)*cellHeight);
 
-				glEnd();
+				glEnd();*/
 			}
 		}
 	}
+	/*
 	pacman->draw();
 	for(int i = 0; i< NUM_GHOST; i++){
 		ghosts[i]->draw();
-	}
+	}*/
 
 	glutSwapBuffers();
 }
 
-void keyboard(int key, int x, int y){
+void keyboardArrows(int key, int x, int y){
 	switch(key)
 	{
 		case GLUT_KEY_UP:
@@ -236,6 +267,22 @@ void keyboard(int key, int x, int y){
 			pacman->SetNewDirection(LEFT);
 			break;
 	}
+}
+
+void keyboard(unsigned char c,int x,int y)
+{
+  int i,j;
+
+  if (c=='i' && anglebeta<=(90-4))
+    anglebeta=(anglebeta+3);
+  else if (c=='k' && anglebeta>=(-90+4))
+    anglebeta=anglebeta-3;
+  else if (c=='j')
+    anglealpha=(anglealpha+3)%360;
+  else if (c=='l')
+    anglealpha=(anglealpha-3+360)%360;
+
+  glutPostRedisplay();
 }
 
 void idle()
@@ -306,14 +353,14 @@ void idle()
 	  			ghosts[i]->SetCurrentDirection(-1);
 	  			ghosts[i]->SetNewDirection(-1);
 	  			ghosts[i]->OutBox();
-	  		}else if(ghosts[i]->GetNewDirection() < 0){
+	  		}else if(IA_VERSION && ghosts[i]->GetNewDirection() < 0){
 	  			CalculateNewDirections();
 	  		}
 	  		// ghost is out, normal behavior
-	  		/*else{
+	  		else{
 	  			ghosts[i]->SetNewDirection(GetGhostDirection(ghosts[i]->GetX(), ghosts[i]->GetY(),ghosts[i]->GetCurrentDirection()));
 	  			//printf("OUT: %i, %i, %i \n",ghosts[i]->GetX(),ghosts[i]->GetY(), ghosts[i]->GetNewDirection());
-	  		}*/
+	  		}
 
 	  		if(ghosts[i]->GetNewDirection() >= 0 && CanGo(ghosts[i]->GetX(), ghosts[i]->GetY(), ghosts[i]->GetNewDirection(),ghosts[i]->CanGoOut()))
 		  	 {
@@ -455,4 +502,107 @@ void CalculateNewDirections(){
 	State* state = new State(pacmanPair,ghostsList,map,0);
 
 
+}
+
+void PositionObserver(float alpha,float beta,int radi)
+{
+  float x,y,z;
+  float upx,upy,upz;
+  float modul;
+
+  //radi=radi*2;
+
+  x = (float)radi*cos(alpha*2*PI/360.0)*cos(beta*2*PI/360.0);
+  y = (float)radi*sin(beta*2*PI/360.0);
+  z = (float)radi*sin(alpha*2*PI/360.0)*cos(beta*2*PI/360.0);
+
+  if (beta>0)
+    {
+      upx=-x;
+      upz=-z;
+      upy=(x*x+z*z)/y;
+    }
+  else if(beta==0)
+    {
+      upx=0;
+      upy=1;
+      upz=0;
+    }
+  else
+    {
+      upx=x;
+      upz=z;
+      upy=-(x*x+z*z)/y;
+    }
+
+
+  modul=sqrt(upx*upx+upy*upy+upz*upz);
+
+  upx=upx/modul;
+  upy=upy/modul;
+  upz=upz/modul;
+
+  gluLookAt(x,y,z,WIDTH/2,Y, -HEIGHT/2,upx,upy,upz);
+}
+
+void printCellQuad(int i,int j){
+
+	glColor3f(map->red/MAX_F,map->green/MAX_F,map->blue/MAX_F);
+	glBegin(GL_QUADS);
+
+	glVertex3i(i*cellWidth, Y,j*cellHeight);
+	glVertex3i((i+1)*cellWidth,Y, j*cellHeight);
+	glVertex3i((i+1)*cellWidth,Y + cellDepth, j*cellHeight);
+	glVertex3i(i*cellWidth,Y + cellDepth, j*cellHeight);
+
+	glEnd();
+
+	glBegin(GL_QUADS);
+
+	glVertex3i((i+1)*cellWidth,Y, j*cellHeight);
+	glVertex3i((i+1)*cellWidth,Y, (j+1)*cellHeight);
+	glVertex3i((i+1)*cellWidth,Y +cellDepth, (j+1)*cellHeight);
+	glVertex3i((i+1)*cellWidth,Y + cellDepth, j*cellHeight);
+
+	glEnd();
+
+	glBegin(GL_QUADS);
+
+	glVertex3i((i+1)*cellWidth,Y, (j+1)*cellHeight);
+	glVertex3i(i*cellWidth,Y, (j+1)*cellHeight);
+	glVertex3i(i*cellWidth,Y +cellDepth, (j+1)*cellHeight);
+	glVertex3i((i+1)*cellWidth,Y + cellDepth, (j+1)*cellHeight);
+
+	glEnd();
+
+	glBegin(GL_QUADS);
+
+	glVertex3i(i*cellWidth,Y, (j+1)*cellHeight);
+	glVertex3i(i*cellWidth,Y, j*cellHeight);
+	glVertex3i(i*cellWidth,Y +cellDepth, j*cellHeight);
+	glVertex3i(i*cellWidth,Y + cellDepth, (j+1)*cellHeight);
+
+	glEnd();
+
+	glColor3f(map->red/2/MAX_F,map->green/2/MAX_F,map->blue/2/MAX_F);
+	glBegin(GL_QUADS);
+
+	glVertex3i(i*cellWidth,Y +cellDepth, j*cellHeight);
+	glVertex3i((i+1)*cellWidth,Y +cellDepth, j*cellHeight);
+	glVertex3i((i+1)*cellWidth,Y +cellDepth, (j+1)*cellHeight);
+	glVertex3i(i*cellWidth,Y + cellDepth, (j+1)*cellHeight);
+
+	glEnd();
+}
+
+void printGroundMap(){
+	glColor3f(GROUND_R/MAX_F,GROUND_G/MAX_F,GROUND_B/MAX_F);
+	glBegin(GL_QUADS);
+
+	glVertex3i(0, Y, 0);
+	glVertex3i(map->GetWidth()*cellWidth, Y, 0);
+	glVertex3i(map->GetWidth()*cellWidth,Y,map->GetHeight()*cellHeight);
+	glVertex3i(0,Y,map->GetHeight()*cellHeight);
+
+	glEnd();
 }
