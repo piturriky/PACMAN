@@ -87,14 +87,22 @@ using namespace std;
 #define GROUND_G 139
 #define GROUND_B 141
 
+#define TEXT_BASE 0
+#define TEXT_PARED 1
+#define TEXT_SOSTRE 2
+#define FILE_BASE "base.jpg"
+#define FILE_PARED "pared.jpg"
+#define FILE_SOSTRE "sostre.jpg"
+
 //VARIABLES
 int wallProbDecrease = 20;
-float cellWidth, cellHeight,cellDepth;
+float cellWidth, cellHeight,cellDepth,radiParticle,radiFood;
 
 #include "cell.cpp"
 #include "map.cpp"
 #include "particle.cpp"
 #include "state.cpp"
+#include "jpeglib.h"
 
 Map *map;
 Particle *pacman;
@@ -123,8 +131,10 @@ void CalculateNewDirections();
 void PositionObserver(float alpha,float beta,int radi);
 void printCellQuad(int i, int j);
 void printGroundMap();
+void ReadJPEG(char *filename,unsigned char **image,int *width, int *height);
+void LoadTexture(char *filename,int dim);
 
-int main(int argc, char *argv[]){ // g++ -o pacman pacman->cc -lglut -lGLU -lGL -lm
+int main(int argc, char *argv[]){ // g++ -o pacman pacman->cc -lglut -lGLU -lGL -lm -l jpeg -L /usr/local/lib
  	int w, h;
 
  	w = h = 0;
@@ -158,6 +168,10 @@ int main(int argc, char *argv[]){ // g++ -o pacman pacman->cc -lglut -lGLU -lGL 
 	cellWidth = WIDTH/map->GetWidth();
 	cellHeight = HEIGHT/map->GetHeight()*(-1);
 	cellDepth = (cellWidth-cellHeight)/4;
+	radiParticle = (fmin(cellWidth,-cellHeight))/2;
+	radiFood =  radiParticle/4;
+
+	printf("%f\n", radiParticle);
 
     initializeParticles();
 
@@ -170,12 +184,19 @@ int main(int argc, char *argv[]){ // g++ -o pacman pacman->cc -lglut -lGLU -lGL 
 	glutInitWindowSize(WIDTH,HEIGHT);
 	glutCreateWindow(WINDOW_NAME);
 	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_TEXTURE_2D);
 
 	glutDisplayFunc(display);
 	glutSpecialFunc(keyboardArrows);
 	glutKeyboardFunc(keyboard);
 	glutIdleFunc(idle);
 
+	glBindTexture(GL_TEXTURE_2D,TEXT_BASE);
+	LoadTexture(FILE_BASE,512);
+	glBindTexture(GL_TEXTURE_2D,TEXT_PARED);
+	LoadTexture(FILE_PARED,64);
+	glBindTexture(GL_TEXTURE_2D,TEXT_SOSTRE);
+	LoadTexture(FILE_SOSTRE,64);
 	//glMatrixMode(GL_PROJECTION);
 	//gluOrtho2D(0,WIDTH-1,0,HEIGHT-1);
 
@@ -217,7 +238,7 @@ void display(){
 
 	glPolygonMode(GL_FRONT,GL_FILL);
 	glPolygonMode(GL_BACK,GL_LINE);
-
+	glEnable(GL_TEXTURE_2D);
 	printGroundMap();
 
 	for(i=0;i<map->GetWidth();i++){
@@ -230,23 +251,36 @@ void display(){
 			else if((i < map->GetWidth()/2 - CENTERBOX/2 || i > map->GetWidth()/2 + CENTERBOX/2
 				|| j < map->GetHeight()/2 - CENTERBOX/2 || j > map->GetHeight()/2 + CENTERBOX/2) && map->HasFood(i, j))
 			{	//OUT OF CENTER BOX
-				/*glColor3f(1.0,1.0,1.0);
-				glBegin(GL_QUADS);
+				glColor3f(1.0,1.0,1.0);
+				
 
-				glVertex2i((i+FOOD_INCREMENT)*cellWidth, (j+FOOD_INCREMENT)*cellHeight);
-				glVertex2i((i+1-FOOD_INCREMENT)*cellWidth, (j+FOOD_INCREMENT)*cellHeight);
-				glVertex2i((i+1-FOOD_INCREMENT)*cellWidth, (j+1-FOOD_INCREMENT)*cellHeight);
-				glVertex2i((i+FOOD_INCREMENT)*cellWidth, (j+1-FOOD_INCREMENT)*cellHeight);
+				GLUquadricObj *quadric;
+				quadric = gluNewQuadric();
 
-				glEnd();*/
+				gluQuadricDrawStyle(quadric, GLU_FILL);
+
+				glPushMatrix();
+				glTranslatef((i+0.5)*cellWidth,Y+radiFood,(j+0.5)*cellHeight);
+				gluSphere(quadric,radiFood,36,18);
+				glPopMatrix();
+
+				gluDeleteQuadric(quadric);
+				
+
+				//glVertex2i((i+FOOD_INCREMENT)*cellWidth, (j+FOOD_INCREMENT)*cellHeight);
+				//glVertex2i((i+1-FOOD_INCREMENT)*cellWidth, (j+FOOD_INCREMENT)*cellHeight);
+				//glVertex2i((i+1-FOOD_INCREMENT)*cellWidth, (j+1-FOOD_INCREMENT)*cellHeight);
+				//glVertex2i((i+FOOD_INCREMENT)*cellWidth, (j+1-FOOD_INCREMENT)*cellHeight);
+
+				//glEnd();
 			}
 		}
 	}
-	/*
+	glDisable(GL_TEXTURE_2D);
 	pacman->draw();
 	for(int i = 0; i< NUM_GHOST; i++){
 		ghosts[i]->draw();
-	}*/
+	}
 
 	glutSwapBuffers();
 }
@@ -510,7 +544,7 @@ void PositionObserver(float alpha,float beta,int radi)
   float upx,upy,upz;
   float modul;
 
-  //radi=radi*2;
+  radi=radi*2;
 
   x = (float)radi*cos(alpha*2*PI/360.0)*cos(beta*2*PI/360.0);
   y = (float)radi*sin(beta*2*PI/360.0);
@@ -547,62 +581,175 @@ void PositionObserver(float alpha,float beta,int radi)
 
 void printCellQuad(int i,int j){
 
-	glColor3f(map->red/MAX_F,map->green/MAX_F,map->blue/MAX_F);
+	//glColor3f(map->red/MAX_F,map->green/MAX_F,map->blue/MAX_F);
+	glBindTexture(GL_TEXTURE_2D,TEXT_PARED);
 	glBegin(GL_QUADS);
 
+	glTexCoord2f(0.0,1.0);
 	glVertex3i(i*cellWidth, Y,j*cellHeight);
+	glTexCoord2f(1.0,1.0);
 	glVertex3i((i+1)*cellWidth,Y, j*cellHeight);
+	glTexCoord2f(1.0,0.0);
 	glVertex3i((i+1)*cellWidth,Y + cellDepth, j*cellHeight);
+	glTexCoord2f(0.0,0.0);
 	glVertex3i(i*cellWidth,Y + cellDepth, j*cellHeight);
 
 	glEnd();
 
 	glBegin(GL_QUADS);
 
+	glTexCoord2f(0.0,1.0);
 	glVertex3i((i+1)*cellWidth,Y, j*cellHeight);
+	glTexCoord2f(1.0,1.0);
 	glVertex3i((i+1)*cellWidth,Y, (j+1)*cellHeight);
+	glTexCoord2f(1.0,0.0);
 	glVertex3i((i+1)*cellWidth,Y +cellDepth, (j+1)*cellHeight);
+	glTexCoord2f(0.0,0.0);
 	glVertex3i((i+1)*cellWidth,Y + cellDepth, j*cellHeight);
 
 	glEnd();
 
 	glBegin(GL_QUADS);
 
+	glTexCoord2f(0.0,1.0);
 	glVertex3i((i+1)*cellWidth,Y, (j+1)*cellHeight);
+	glTexCoord2f(1.0,1.0);
 	glVertex3i(i*cellWidth,Y, (j+1)*cellHeight);
+	glTexCoord2f(1.0,0.0);
 	glVertex3i(i*cellWidth,Y +cellDepth, (j+1)*cellHeight);
+	glTexCoord2f(0.0,0.0);
 	glVertex3i((i+1)*cellWidth,Y + cellDepth, (j+1)*cellHeight);
 
 	glEnd();
 
 	glBegin(GL_QUADS);
 
+	glTexCoord2f(0.0,1.0);
 	glVertex3i(i*cellWidth,Y, (j+1)*cellHeight);
+	glTexCoord2f(1.0,1.0);
 	glVertex3i(i*cellWidth,Y, j*cellHeight);
+	glTexCoord2f(1.0,0.0);
 	glVertex3i(i*cellWidth,Y +cellDepth, j*cellHeight);
+	glTexCoord2f(0.0,0.0);
 	glVertex3i(i*cellWidth,Y + cellDepth, (j+1)*cellHeight);
 
 	glEnd();
 
-	glColor3f(map->red/2/MAX_F,map->green/2/MAX_F,map->blue/2/MAX_F);
+	//glColor3f(map->red/2/MAX_F,map->green/2/MAX_F,map->blue/2/MAX_F);
+	glBindTexture(GL_TEXTURE_2D,TEXT_SOSTRE);
 	glBegin(GL_QUADS);
 
+	glTexCoord2f(0.0,1.0);
 	glVertex3i(i*cellWidth,Y +cellDepth, j*cellHeight);
+	glTexCoord2f(1.0,1.0);
 	glVertex3i((i+1)*cellWidth,Y +cellDepth, j*cellHeight);
+	glTexCoord2f(1.0,0.0);
 	glVertex3i((i+1)*cellWidth,Y +cellDepth, (j+1)*cellHeight);
+	glTexCoord2f(0.0,0.0);
 	glVertex3i(i*cellWidth,Y + cellDepth, (j+1)*cellHeight);
 
 	glEnd();
 }
 
 void printGroundMap(){
-	glColor3f(GROUND_R/MAX_F,GROUND_G/MAX_F,GROUND_B/MAX_F);
+	//glColor3f(GROUND_R/MAX_F,GROUND_G/MAX_F,GROUND_B/MAX_F);
+	glBindTexture(GL_TEXTURE_2D,TEXT_BASE);
 	glBegin(GL_QUADS);
 
+	glTexCoord2f(0.0,2.0);
 	glVertex3i(0, Y, 0);
+	glTexCoord2f(2.0,2.0);
 	glVertex3i(map->GetWidth()*cellWidth, Y, 0);
+	glTexCoord2f(2.0,0.0);
 	glVertex3i(map->GetWidth()*cellWidth,Y,map->GetHeight()*cellHeight);
+	glTexCoord2f(0.0,0.0);
 	glVertex3i(0,Y,map->GetHeight()*cellHeight);
 
 	glEnd();
+}
+
+void ReadJPEG(char *filename,unsigned char **image,int *width, int *height)
+{
+  struct jpeg_decompress_struct cinfo;
+  struct jpeg_error_mgr jerr;
+  FILE * infile;
+  unsigned char **buffer;
+  int i,j;
+
+  cinfo.err = jpeg_std_error(&jerr);
+  jpeg_create_decompress(&cinfo);
+
+
+  if ((infile = fopen(filename, "rb")) == NULL) {
+    printf("Unable to open file %s\n",filename);
+    exit(1);
+  }
+
+  jpeg_stdio_src(&cinfo, infile);
+  jpeg_read_header(&cinfo, TRUE);
+  jpeg_calc_output_dimensions(&cinfo);
+  jpeg_start_decompress(&cinfo);
+
+  *width = cinfo.output_width;
+  *height  = cinfo.output_height;
+
+
+  *image=(unsigned char*)malloc(cinfo.output_width*cinfo.output_height*cinfo.output_components);
+
+  buffer=(unsigned char **)malloc(1*sizeof(unsigned char **));
+  buffer[0]=(unsigned char *)malloc(cinfo.output_width*cinfo.output_components);
+
+
+  i=0;
+  while (cinfo.output_scanline < cinfo.output_height) {
+    jpeg_read_scanlines(&cinfo, buffer, 1);
+
+    for(j=0;j<cinfo.output_width*cinfo.output_components;j++)
+      {
+	(*image)[i]=buffer[0][j];
+	i++;
+      }   
+
+    }
+
+  free(buffer);
+  jpeg_finish_decompress(&cinfo);
+} 
+
+
+
+/*--------------------------------------------------------*/
+/*--------------------------------------------------------*/
+void LoadTexture(char *filename,int dim)
+{
+  unsigned char *buffer;
+  unsigned char *buffer2;
+  int width,height;
+  long i,j;
+  long k,h;
+
+  ReadJPEG(filename,&buffer,&width,&height);
+
+  buffer2=(unsigned char*)malloc(dim*dim*3);
+
+  //-- The texture pattern is subsampled so that its dimensions become dim x dim --
+  for(i=0;i<dim;i++)
+    for(j=0;j<dim;j++)
+      {
+	k=i*height/dim;
+	h=j*width/dim;
+	
+	buffer2[3*(i*dim+j)]=buffer[3*(k*width +h)];
+	buffer2[3*(i*dim+j)+1]=buffer[3*(k*width +h)+1];
+	buffer2[3*(i*dim+j)+2]=buffer[3*(k*width +h)+2];
+
+      }
+
+  glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_NEAREST);
+  glTexEnvi(GL_TEXTURE_ENV,GL_TEXTURE_ENV_MODE,GL_REPLACE);
+  glTexImage2D(GL_TEXTURE_2D,0,GL_RGB,dim,dim,0,GL_RGB,GL_UNSIGNED_BYTE,buffer2);
+
+  free(buffer);
+  free(buffer2);
 }

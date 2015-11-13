@@ -105,12 +105,23 @@ class Particle{
 		void draw()
 		{
 			glColor3f(r,g,b);
-			glBegin(GL_QUADS);
+			GLUquadricObj *quadric;
+			quadric = gluNewQuadric();
+
+			gluQuadricDrawStyle(quadric, GLU_FILL);
+
+			glPushMatrix();
+			glTranslatef((x+0.5)*cellWidth,Y+radiParticle,(y+0.5)*cellHeight);
+			gluSphere(quadric,radiParticle,36,18);
+			glPopMatrix();
+
+			gluDeleteQuadric(quadric);
+			/*glBegin(GL_QUADS);
 			glVertex2i((x+GHOST)*cellWidth, (y+GHOST)*cellHeight);
 			glVertex2i((x+1-GHOST)*cellWidth, (y+GHOST)*cellHeight);
 			glVertex2i((x+1-GHOST)*cellWidth, (y+1-GHOST)*cellHeight);
 			glVertex2i((x+GHOST)*cellWidth, (y+1-GHOST)*cellHeight);
-			glEnd();
+			glEnd();*/
 		}
 
 		int getNextX(){
