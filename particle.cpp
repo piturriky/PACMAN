@@ -102,9 +102,61 @@ class Particle{
 			}
 		}
 
+		void drawLight(bool pacman){
+			float colorValue = 0.3;
+			int degree = 20;
+
+			float a = 1.0;
+
+			if(pacman){
+				colorValue = 0.8;
+				degree = 45;
+				a = 0.0;
+			}
+
+			GLint position[4];
+  			GLfloat color[4];
+  			GLfloat dir[3];
+
+  			switch(current_direction){
+  				case UP:
+  					dir[0]=0;dir[1]=0;dir[2]=-1;
+  					break;
+				case DOWN:
+  					dir[0]=0;dir[1]=0;dir[2]=1;
+  					break;
+				case RIGHT:
+  					dir[0]=1;dir[1]=0;dir[2]=0;
+  					break;
+				case LEFT:
+  					dir[0]=-1;dir[1]=0;dir[2]=0;
+  					break;
+  			}
+
+  			glLightfv(GL_LIGHT2,GL_SPOT_DIRECTION,dir);
+  			glLightf(GL_LIGHT2,GL_SPOT_CUTOFF,degree);
+  			glLightf(GL_LIGHT2,GL_SPOT_EXPONENT,10);
+
+			position[0]=(x+0.5)*cellWidth; position[1]=Y+radiParticle; position[2]=(y+0.5)*cellHeight; position[3]=1; 
+			glLightiv(GL_LIGHT2,GL_POSITION,position);
+
+			color[0]=colorValue; color[1]=colorValue; color[2]=colorValue; color[3]=1;
+			glLightfv(GL_LIGHT2,GL_DIFFUSE,color);
+
+			glLightf(GL_LIGHT2,GL_CONSTANT_ATTENUATION,1.0);
+			glLightf(GL_LIGHT2,GL_LINEAR_ATTENUATION,0.0);
+			glLightf(GL_LIGHT2,GL_QUADRATIC_ATTENUATION,a);
+
+			glEnable(GL_LIGHT2);
+		}
+
 		void draw()
 		{
-			glColor3f(r,g,b);
+			GLfloat material[4];
+			//glColor3f(r,g,b);
+			material[0]=r; material[1]=g; material[2]=b; material[3]=1.0; 
+  			glMaterialfv(GL_FRONT_AND_BACK,GL_AMBIENT_AND_DIFFUSE,material);
+
 			GLUquadricObj *quadric;
 			quadric = gluNewQuadric();
 

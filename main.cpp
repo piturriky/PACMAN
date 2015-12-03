@@ -185,6 +185,7 @@ int main(int argc, char *argv[]){ // g++ -o pacman pacman->cc -lglut -lGLU -lGL 
 	glutCreateWindow(WINDOW_NAME);
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_TEXTURE_2D);
+	glEnable(GL_LIGHTING);
 
 	glutDisplayFunc(display);
 	glutSpecialFunc(keyboardArrows);
@@ -222,6 +223,10 @@ void initializeParticles()
 void display(){
 	int i,j;
 
+	GLint position[4];
+  	GLfloat color[4];
+  	GLfloat material[4];
+
 	glClearColor(0.0,0.0,0.0,0.0);
 	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 
@@ -238,12 +243,38 @@ void display(){
 
 	glPolygonMode(GL_FRONT,GL_FILL);
 	glPolygonMode(GL_BACK,GL_LINE);
+
+
+
+	//-- Ambient light
+	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+  
+	position[0]=0; position[1]=0; position[2]=0; position[3]=1; 
+	glLightiv(GL_LIGHT0,GL_POSITION,position);
+
+	color[0]=0.1; color[1]=0.1; color[2]=0.1; color[3]=1;
+	glLightfv(GL_LIGHT0,GL_AMBIENT,color);
+
+	color[0]=0; color[1]=0; color[2]=0; color[3]=1;
+  	glLightfv(GL_LIGHT0,GL_DIFFUSE,color);
+
+	glEnable(GL_LIGHT0);
+
+	material[0]=1; material[1]=1; material[2]=1; material[3]=1.0; 
+	glMaterialfv(GL_FRONT_AND_BACK,GL_AMBIENT_AND_DIFFUSE,material);
+
+	pacman->drawLight(true);
+	
+
 	glEnable(GL_TEXTURE_2D);
 	printGroundMap();
 
 	for(i=0;i<map->GetWidth();i++){
 		for(j=0;j<map->GetHeight();j++){
+
 			if(map->GetCell(i, j).IsType(WALL)){
+				material[0]=1; material[1]=1; material[2]=1; material[3]=1.0; 
+				glMaterialfv(GL_FRONT_AND_BACK,GL_AMBIENT_AND_DIFFUSE,material);
 
 				printCellQuad(i,j);
 
@@ -251,8 +282,11 @@ void display(){
 			else if((i < map->GetWidth()/2 - CENTERBOX/2 || i > map->GetWidth()/2 + CENTERBOX/2
 				|| j < map->GetHeight()/2 - CENTERBOX/2 || j > map->GetHeight()/2 + CENTERBOX/2) && map->HasFood(i, j))
 			{	//OUT OF CENTER BOX
-				glColor3f(1.0,1.0,1.0);
-				
+				glDisable(GL_TEXTURE_2D);
+				//glColor3f(1.0,1.0,1.0);
+
+				material[0]=1.0; material[1]=1.0; material[2]=1.0; material[3]=1.0; 
+  				glMaterialfv(GL_FRONT_AND_BACK,GL_AMBIENT_AND_DIFFUSE,material);
 
 				GLUquadricObj *quadric;
 				quadric = gluNewQuadric();
@@ -266,6 +300,7 @@ void display(){
 
 				gluDeleteQuadric(quadric);
 				
+				glEnable(GL_TEXTURE_2D);
 
 				//glVertex2i((i+FOOD_INCREMENT)*cellWidth, (j+FOOD_INCREMENT)*cellHeight);
 				//glVertex2i((i+1-FOOD_INCREMENT)*cellWidth, (j+FOOD_INCREMENT)*cellHeight);
@@ -584,7 +619,7 @@ void printCellQuad(int i,int j){
 	//glColor3f(map->red/MAX_F,map->green/MAX_F,map->blue/MAX_F);
 	glBindTexture(GL_TEXTURE_2D,TEXT_PARED);
 	glBegin(GL_QUADS);
-
+	glNormal3f(0,0,1);
 	glTexCoord2f(0.0,1.0);
 	glVertex3i(i*cellWidth, Y,j*cellHeight);
 	glTexCoord2f(1.0,1.0);
@@ -597,7 +632,7 @@ void printCellQuad(int i,int j){
 	glEnd();
 
 	glBegin(GL_QUADS);
-
+	glNormal3f(1,0,0);
 	glTexCoord2f(0.0,1.0);
 	glVertex3i((i+1)*cellWidth,Y, j*cellHeight);
 	glTexCoord2f(1.0,1.0);
@@ -610,7 +645,7 @@ void printCellQuad(int i,int j){
 	glEnd();
 
 	glBegin(GL_QUADS);
-
+	glNormal3f(0,0,-1);
 	glTexCoord2f(0.0,1.0);
 	glVertex3i((i+1)*cellWidth,Y, (j+1)*cellHeight);
 	glTexCoord2f(1.0,1.0);
@@ -623,7 +658,7 @@ void printCellQuad(int i,int j){
 	glEnd();
 
 	glBegin(GL_QUADS);
-
+	glNormal3f(-1,0,0);
 	glTexCoord2f(0.0,1.0);
 	glVertex3i(i*cellWidth,Y, (j+1)*cellHeight);
 	glTexCoord2f(1.0,1.0);
@@ -638,7 +673,7 @@ void printCellQuad(int i,int j){
 	//glColor3f(map->red/2/MAX_F,map->green/2/MAX_F,map->blue/2/MAX_F);
 	glBindTexture(GL_TEXTURE_2D,TEXT_SOSTRE);
 	glBegin(GL_QUADS);
-
+	glNormal3f(0,1,0);
 	glTexCoord2f(0.0,1.0);
 	glVertex3i(i*cellWidth,Y +cellDepth, j*cellHeight);
 	glTexCoord2f(1.0,1.0);
@@ -656,6 +691,7 @@ void printGroundMap(){
 	glBindTexture(GL_TEXTURE_2D,TEXT_BASE);
 	glBegin(GL_QUADS);
 
+	glNormal3f(0,1,0);
 	glTexCoord2f(0.0,2.0);
 	glVertex3i(0, Y, 0);
 	glTexCoord2f(2.0,2.0);
