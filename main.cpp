@@ -263,8 +263,10 @@ void display(){
 	material[0]=1; material[1]=1; material[2]=1; material[3]=1.0; 
 	glMaterialfv(GL_FRONT_AND_BACK,GL_AMBIENT_AND_DIFFUSE,material);
 
-	pacman->drawLight(true);
-	
+	pacman->drawLight(0);
+	for(int i = 0; i< NUM_GHOST; i++){
+		ghosts[i]->drawLight(i+1);
+	}
 
 	glEnable(GL_TEXTURE_2D);
 	printGroundMap();

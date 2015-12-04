@@ -102,16 +102,16 @@ class Particle{
 			}
 		}
 
-		void drawLight(bool pacman){
-			float colorValue = 0.3;
+		void drawLight(int particle){
+
+			GLenum lights;
+
+			float colorValue = 0.8;
 			int degree = 20;
 
-			float a = 1.0;
-
-			if(pacman){
+			if(particle == 0){
 				colorValue = 0.8;
 				degree = 45;
-				a = 0.0;
 			}
 
 			GLint position[4];
@@ -133,21 +133,37 @@ class Particle{
   					break;
   			}
 
-  			glLightfv(GL_LIGHT2,GL_SPOT_DIRECTION,dir);
-  			glLightf(GL_LIGHT2,GL_SPOT_CUTOFF,degree);
-  			glLightf(GL_LIGHT2,GL_SPOT_EXPONENT,10);
+  			switch (particle){
+  				case 0:
+  					lights = GL_LIGHT2;
+  					break;
+				case 1:
+  					lights = GL_LIGHT3;
+  					break;
+				case 2:
+  					lights = GL_LIGHT4;
+  					break;
+				case 3:
+  					lights = GL_LIGHT5;
+  					break;
+  			}
+  				
+
+  			glLightfv(lights,GL_SPOT_DIRECTION,dir);
+  			glLightf(lights,GL_SPOT_CUTOFF,degree);
+  			glLightf(lights,GL_SPOT_EXPONENT,10);
 
 			position[0]=(x+0.5)*cellWidth; position[1]=Y+radiParticle; position[2]=(y+0.5)*cellHeight; position[3]=1; 
-			glLightiv(GL_LIGHT2,GL_POSITION,position);
+			glLightiv(lights,GL_POSITION,position);
 
 			color[0]=colorValue; color[1]=colorValue; color[2]=colorValue; color[3]=1;
-			glLightfv(GL_LIGHT2,GL_DIFFUSE,color);
+			glLightfv(lights,GL_DIFFUSE,color);
 
-			glLightf(GL_LIGHT2,GL_CONSTANT_ATTENUATION,1.0);
-			glLightf(GL_LIGHT2,GL_LINEAR_ATTENUATION,0.0);
-			glLightf(GL_LIGHT2,GL_QUADRATIC_ATTENUATION,a);
+			glLightf(lights,GL_CONSTANT_ATTENUATION,1.0);
+			glLightf(lights,GL_LINEAR_ATTENUATION,0.0);
+			glLightf(lights,GL_QUADRATIC_ATTENUATION,0.0);
 
-			glEnable(GL_LIGHT2);
+			glEnable(lights);
 		}
 
 		void draw()
