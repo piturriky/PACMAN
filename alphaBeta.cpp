@@ -20,7 +20,7 @@ int Utility(State state){
 
 list< pair<int, int> > visiteds;
 
-int BFS(State state){
+/*int BFS(State state){
 	queue< queue < pair<int, int> > > bfsQueue;
 	queue< pair<int, int> > result;
 
@@ -31,5 +31,5 @@ int BFS(State state){
 		desenvolupar següent element de la cua comprobant si hem trobat el pacman i si podem continuar per akell cami (visiteds);
 		quan trobem el pacman o no podem continuar pq esta tot marcat, sortim del bucle
 	}
-	marcar posicions de result i determinar cap on anira el fantasma
+	marcar posicions de result i determinar cap on anira el fantasma*/
 	
