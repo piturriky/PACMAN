@@ -26,6 +26,7 @@
 #include <iostream>
 #include <utility>
 #include <list>
+#include <algorithm>
 using namespace std;
 
 #define IA_VERSION false
@@ -102,6 +103,7 @@ float cellWidth, cellHeight,cellDepth,radiParticle,radiFood;
 #include "map.cpp"
 #include "particle.cpp"
 #include "state.cpp"
+#include "alphaBeta.cpp"
 #include "jpeglib.h"
 
 Map *map;
