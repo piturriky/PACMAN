@@ -31,7 +31,6 @@ list< pair<int, int> > getNextPositions(int x, int y, State state){
 	return nextPositions;
 }
 
-
 int BFS(int x, int y, State state){
 	list< list < pair<int, int> > > bfsQueue;
 	list< pair<int, int> > auxList;
@@ -71,5 +70,4 @@ int BFS(int x, int y, State state){
 	visiteds.splice(visiteds.begin(), newQueue);
 	//marcar posicions de result i determinar cap on anira el fantasma
 }
-
 	
