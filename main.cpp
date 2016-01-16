@@ -26,7 +26,6 @@
 #include <iostream>
 #include <utility>
 #include <list>
-<<<<<<< HEAD
 #include <string.h>
 #include <unistd.h>
 #include <stdint.h>
@@ -36,15 +35,13 @@
 #include <sys/ioctl.h>
 #include <thread>
 #include <ctime>
-
-=======
 #include <algorithm>
->>>>>>> b404d17801337fb3871263b3bbdd1acbec2a0a3e
+
 using namespace std;
 
 #define IA_VERSION false
 
-#define WINDOW_NAME "PAC MAN"
+#define WINDOW_NAME "PACMAN"
 
 #define WIDTH 600
 #define HEIGHT 600
