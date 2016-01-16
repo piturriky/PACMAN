@@ -1,9 +1,11 @@
+list< pair<int, int> > visiteds;
+
 int alphaBetaDesition(State state){
 
 }
 
 int MaxValue(State state, int alpha, int beta){
-	if(state.isTerminal()) return 
+	if(state.isTerminal()) return 0;
 }
 
 int MinValue(State state, int alpha, int beta){
@@ -13,23 +15,59 @@ int MinValue(State state, int alpha, int beta){
 int Utility(State state){
 	int dist = 0;
 	list<pair<int,int> >::iterator i;
+	//afegir posicions actuals de pacmans a visiteds
 	for(i = state.ghosts.begin(); i!=state.ghosts.end(); i++){
 
 	}
 }
 
-list< pair<int, int> > visiteds;
+list< pair<int, int> > getNextPositions(int x, int y, State state){
+	list< pair<int, int> > nextPositions;
+	for(int i = x-1; i<= x+1; i++)
+		for(int j = y-1; j<= y+1; j++){
+			if((i == x || j == y) && state.map->GetCell(x, y).IsType(CORRIDOR))
+				nextPositions.push_front(make_pair(i,j));
+		}
+	return nextPositions;
+}
 
-/*int BFS(State state){
-	queue< queue < pair<int, int> > > bfsQueue;
-	queue< pair<int, int> > result;
+int BFS(int x, int y, State state){
+	list< list < pair<int, int> > > bfsQueue;
+	list< pair<int, int> > auxList;
+	list< pair<int, int> > newQueue;
+	pair<int, int> auxPair;
 
-	visiteds.push_front( make_pair(i->getX(), i->getY()));
-	buidar i afegir primeres cues de camins a bfsQueue comprovant si ja hem trobat el pacman;
-	while(true){
-		si la cua nomes te un element ja hem trobat cap on es moura el fantasma pero seguirem desenvolupant per marcar el cami per on pasem.
-		desenvolupar següent element de la cua comprobant si hem trobat el pacman i si podem continuar per akell cami (visiteds);
-		quan trobem el pacman o no podem continuar pq esta tot marcat, sortim del bucle
+	auxList = getNextPositions(x, y, state);
+	while(!auxList.empty()){
+		newQueue.clear();
+		newQueue.push_front(auxList.front());
+		auxList.pop_front();
+		bfsQueue.push_front(newQueue);
 	}
-	marcar posicions de result i determinar cap on anira el fantasma*/
+	
+	while(!bfsQueue.empty()){
+		auxPair = bfsQueue.back().front();
+		auxList = getNextPositions(auxPair.first, auxPair.second, state);
+		while(!auxList.empty()){
+			auxPair = auxList.front();
+			auxList.pop_front();
+			if(auxPair.first == state.pacman.first && auxPair.second == state.pacman.second){
+				newQueue.clear();
+				newQueue = bfsQueue.back();
+				newQueue.push_front(auxPair);
+				goto finalize;
+			}
+			else if(find(visiteds.begin(), visiteds.end(), auxPair) == visiteds.end()){
+				newQueue.clear();
+				newQueue = bfsQueue.back();
+				newQueue.push_front(auxPair);
+				bfsQueue.push_front(newQueue);
+			}
+		}
+		bfsQueue.pop_back();
+	}
+	finalize:
+	visiteds.splice(visiteds.begin(), newQueue);
+	//marcar posicions de result i determinar cap on anira el fantasma
+}
 	

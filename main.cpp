@@ -26,6 +26,7 @@
 #include <iostream>
 #include <utility>
 #include <list>
+<<<<<<< HEAD
 #include <string.h>
 #include <unistd.h>
 #include <stdint.h>
@@ -36,6 +37,9 @@
 #include <thread>
 #include <ctime>
 
+=======
+#include <algorithm>
+>>>>>>> b404d17801337fb3871263b3bbdd1acbec2a0a3e
 using namespace std;
 
 #define IA_VERSION false
@@ -118,6 +122,7 @@ struct arduinoProtocol {
 #include "map.cpp"
 #include "particle.cpp"
 #include "state.cpp"
+#include "alphaBeta.cpp"
 #include "jpeglib.h"
 #include "ArduinoComm.cpp"
 
