@@ -1,59 +1,41 @@
-#include <boost/asio.hpp>
+#ifndef SERIALCLASS_H_INCLUDED
+#define SERIALCLASS_H_INCLUDED
 
-class SimpleSerial
+#define ARDUINO_WAIT_TIME 2000
+
+#include <windows.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+class Serial
 {
-public:
-    /**
-     * Constructor.
-     * \param port device name, example "/dev/ttyUSB0" or "COM4"
-     * \param baud_rate communication speed, example 9600 or 115200
-     * \throws boost::system::system_error if cannot open the
-     * serial device
-     */
-    SimpleSerial(std::string port, unsigned int baud_rate)
-    : io(), serial(io,port)
-    {
-        serial.set_option(boost::asio::serial_port_base::baud_rate(baud_rate));
-    }
+    private:
+        //Serial comm handler
+        HANDLE hSerial;
+        //Connection status
+        bool connected;
+        //Get various information about the connection
+        COMSTAT status;
+        //Keep track of last error
+        DWORD errors;
 
-    /**
-     * Write a string to the serial device.
-     * \param s string to write
-     * \throws boost::system::system_error on failure
-     */
-    void writeString(std::string s)
-    {
-        boost::asio::write(serial,boost::asio::buffer(s.c_str(),s.size()));
-    }
+    public:
+        //Initialize Serial communication with the given COM port
+        Serial(char *portName);
+        //Close the connection
+        ~Serial();
+        //Read data in a buffer, if nbChar is greater than the
+        //maximum number of bytes available, it will return only the
+        //bytes available. The function return -1 when nothing could
+        //be read, the number of bytes actually read.
+        int ReadData(char *buffer, unsigned int nbChar);
+        //Writes data from a buffer through the Serial connection
+        //return true on success.
+        bool WriteData(char *buffer, unsigned int nbChar);
+        //Check if we are actually connected
+        bool IsConnected();
 
-    /**
-     * Blocks until a line is received from the serial device.
-     * Eventual '\n' or '\r\n' characters at the end of the string are removed.
-     * \return a string containing the received line
-     * \throws boost::system::system_error on failure
-     */
-    std::string readLine()
-    {
-        //Reading data char by char, code is optimized for simplicity, not speed
-        using namespace boost;
-        char c;
-        std::string result;
-        for(;;)
-        {
-            asio::read(serial,asio::buffer(&c,1));
-            switch(c)
-            {
-                case '\r':
-                    break;
-                case '\n':
-                    return result;
-                default:
-                    result+=c;
-            }
-        }
-    }
 
-private:
-    boost::asio::io_service io;
-    boost::asio::serial_port serial;
 };
+
+#endif // SERIALCLASS_H_INCLUDED

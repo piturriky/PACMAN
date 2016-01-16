@@ -10,6 +10,8 @@ class Particle{
 			this->current_direction = -1;
 			this->canGoOut = false;
 			this->lastInBox = true;
+
+			this->pacmanDegreeVisivility = 45;
 		}
 		~Particle(){}
 		
@@ -17,6 +19,11 @@ class Particle{
 		{
 			this->x = x;
 			this->y = y;
+		}
+
+		void SetDegreeVisivility(int x)
+		{
+			this->pacmanDegreeVisivility = x;
 		}
 
 		int GetX()
@@ -111,7 +118,7 @@ class Particle{
 
 			if(particle == 0){
 				colorValue = 0.8;
-				degree = 45;
+				degree = this->pacmanDegreeVisivility;
 			}
 
 			GLint position[4];
@@ -216,7 +223,7 @@ class Particle{
 	private:
 		float x, y;
 		float vx, vy;
-		int state;
+		int state, pacmanDegreeVisivility;
 		long time_remaining;
 		float r, g, b; //RGB color
 		int new_direction, current_direction;

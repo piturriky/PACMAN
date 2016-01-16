@@ -26,6 +26,16 @@
 #include <iostream>
 #include <utility>
 #include <list>
+#include <string.h>
+#include <unistd.h>
+#include <stdint.h>
+#include <fcntl.h>
+#include <termios.h>
+#include <errno.h>
+#include <sys/ioctl.h>
+#include <thread>
+#include <ctime>
+
 using namespace std;
 
 #define IA_VERSION false
@@ -94,19 +104,27 @@ using namespace std;
 #define FILE_PARED "pared.jpg"
 #define FILE_SOSTRE "sostre.jpg"
 
+#define CALIBRATION_TIME 5
+
 //VARIABLES
 int wallProbDecrease = 20;
 float cellWidth, cellHeight,cellDepth,radiParticle,radiFood;
+struct arduinoProtocol {
+	bool state;
+  int pacmanDirection, pacmanVision, pacmanVelocity, pacmanAmbient;
+} aProtocol;
 
 #include "cell.cpp"
 #include "map.cpp"
 #include "particle.cpp"
 #include "state.cpp"
 #include "jpeglib.h"
+#include "ArduinoComm.cpp"
 
 Map *map;
 Particle *pacman;
 Particle *ghosts[NUM_GHOST];
+ArduinoComm *aComm;
 long last_t = 0;
 
 int points = 0;
@@ -116,6 +134,8 @@ int nextGost = 1;
 /*--- Global variables that determine the viewpoint location ---*/
 int anglealpha = 0;
 int anglebeta = 0;
+
+int realTimeToMove = TIMETOMOVE;
 
 void getRandoomWallColor(int *red,int *green,int *blue);
 void display();
@@ -135,6 +155,10 @@ void ReadJPEG(char *filename,unsigned char **image,int *width, int *height);
 void LoadTexture(char *filename,int dim);
 
 int main(int argc, char *argv[]){ // g++ -o pacman pacman->cc -lglut -lGLU -lGL -lm -l jpeg -L /usr/local/lib
+
+	aComm = new ArduinoComm();
+	aProtocol.state = false;
+
  	int w, h;
 
  	w = h = 0;
@@ -160,9 +184,9 @@ int main(int argc, char *argv[]){ // g++ -o pacman pacman->cc -lglut -lGLU -lGL 
 
     map = new Map(w, h);
     map->initialize();
-    map->printMap();
+    //map->printMap();
 
-    printf("%i\n",map->GetInitialMeal());
+    //printf("%i\n",map->GetInitialMeal());
     ghostsTimer = map->GetInitialMeal()/NUM_GHOST/INCREMENT_GHOST_TIMER;
 	
 	cellWidth = WIDTH/map->GetWidth();
@@ -171,12 +195,42 @@ int main(int argc, char *argv[]){ // g++ -o pacman pacman->cc -lglut -lGLU -lGL 
 	radiParticle = (fmin(cellWidth,-cellHeight))/2;
 	radiFood =  radiParticle/4;
 
-	printf("%f\n", radiParticle);
+	//printf("%f\n", radiParticle);
 
     initializeParticles();
 
     anglealpha = 45;
     anglebeta = 60;
+
+    aComm->startCallibration();
+    /*if(!aComm->startCallibration()){
+    	printf("COMMUNICATION ERROR\n");
+    	return 0;
+    }*/
+    for(int x = CALIBRATION_TIME; x >= 0; x--){
+    	switch(x){
+    		case CALIBRATION_TIME:
+    			printf("WELLCOME TO PACMAN BGC\n");
+				break;
+			case 3:
+				printf("3\n");
+				break;
+			case 2:
+				printf("2\n");
+				break;
+			case 1:
+				printf("1\n");
+				break;
+			case 0:
+				printf("GOOO!\n");
+				break;
+			default:
+				printf("\n");
+    	}
+    	usleep(1000000);
+    }
+
+    aComm->startProcess();
 
     glutInit(&argc, argv);
 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH); 
@@ -356,6 +410,34 @@ void keyboard(unsigned char c,int x,int y)
   glutPostRedisplay();
 }
 
+void setParamsFromArduino(){
+	//Direction
+	switch(aProtocol.pacmanDirection)
+	{
+		case UP:
+			pacman->SetNewDirection(UP);
+			break;
+		case DOWN:
+			pacman->SetNewDirection(DOWN);
+			break;
+		case RIGHT:
+			pacman->SetNewDirection(RIGHT);
+			break;
+		case LEFT:
+			pacman->SetNewDirection(LEFT);
+			break;
+	}
+
+	//Velocity
+	realTimeToMove = TIMETOMOVE / aProtocol.pacmanVelocity;
+
+	//Ambient
+
+	//Front visivility
+	pacman->SetDegreeVisivility(45/aProtocol.pacmanVision);
+
+}
+
 void idle()
 {
   long t;	
@@ -373,6 +455,13 @@ void idle()
       last_t=t;
     }
 
+    if(aProtocol.state){
+    	printf("Direction: %i, Velocity: %i, Ambient: %i, Vision: %i\n\n", 
+    		aProtocol.pacmanDirection, aProtocol.pacmanVelocity, aProtocol.pacmanAmbient, aProtocol.pacmanVision);
+
+    	aProtocol.state = false;
+    }
+
   // PACMAN
   if(pacman->GetState() == QUIET)
   {
@@ -388,16 +477,16 @@ void idle()
   	 	switch(pacman->GetCurrentDirection())
 	  	 {
 	  	 	case UP:
-	  	 		pacman->InitMovement(pacman->GetX(), pacman->GetY() + 1, TIMETOMOVE);
+	  	 		pacman->InitMovement(pacman->GetX(), pacman->GetY() + 1, realTimeToMove);
 	  	 		break;
 	  	 	case DOWN:
-	  	 		pacman->InitMovement(pacman->GetX(), pacman->GetY() - 1, TIMETOMOVE);
+	  	 		pacman->InitMovement(pacman->GetX(), pacman->GetY() - 1, realTimeToMove);
 	  	 		break;
 	  	 	case RIGHT:
-	  	 		pacman->InitMovement(pacman->GetX() + 1, pacman->GetY(), TIMETOMOVE);
+	  	 		pacman->InitMovement(pacman->GetX() + 1, pacman->GetY(), realTimeToMove);
 	  	 		break;
 	  	 	case LEFT:
-	  	 		pacman->InitMovement(pacman->GetX() - 1, pacman->GetY(), TIMETOMOVE);
+	  	 		pacman->InitMovement(pacman->GetX() - 1, pacman->GetY(), realTimeToMove);
 	  	 		break;
 	  	 }
   	 }
@@ -445,16 +534,16 @@ void idle()
 			  	 {
 			  	 	
 			  	 	case UP:
-			  	 		ghosts[i]->InitMovement(ghosts[i]->GetX(), ghosts[i]->GetY() + 1, TIMETOMOVE);
+			  	 		ghosts[i]->InitMovement(ghosts[i]->GetX(), ghosts[i]->GetY() + 1, realTimeToMove);
 			  	 		break;
 			  	 	case DOWN:
-			  	 		ghosts[i]->InitMovement(ghosts[i]->GetX(), ghosts[i]->GetY() - 1, TIMETOMOVE);
+			  	 		ghosts[i]->InitMovement(ghosts[i]->GetX(), ghosts[i]->GetY() - 1, realTimeToMove);
 			  	 		break;
 			  	 	case RIGHT:
-			  	 		ghosts[i]->InitMovement(ghosts[i]->GetX() + 1, ghosts[i]->GetY(), TIMETOMOVE);
+			  	 		ghosts[i]->InitMovement(ghosts[i]->GetX() + 1, ghosts[i]->GetY(), realTimeToMove);
 			  	 		break;
 			  	 	case LEFT:
-			  	 		ghosts[i]->InitMovement(ghosts[i]->GetX() - 1, ghosts[i]->GetY(), TIMETOMOVE);
+			  	 		ghosts[i]->InitMovement(ghosts[i]->GetX() - 1, ghosts[i]->GetY(), realTimeToMove);
 			  	 		break;
 			  	 }
 		  	 }
