@@ -39,6 +39,8 @@
 
 using namespace std;
 
+#define DEBUG false
+
 #define IA_VERSION false
 
 #define WINDOW_NAME "PACMAN"
@@ -105,7 +107,7 @@ using namespace std;
 #define FILE_PARED "pared.jpg"
 #define FILE_SOSTRE "sostre.jpg"
 
-#define CALIBRATION_TIME 5
+#define CALIBRATION_TIME 20
 
 //VARIABLES
 int wallProbDecrease = 20;
@@ -138,6 +140,7 @@ int anglealpha = 0;
 int anglebeta = 0;
 
 int realTimeToMove = TIMETOMOVE;
+double realAmbientLevel = 1;
 
 void getRandoomWallColor(int *red,int *green,int *blue);
 void display();
@@ -158,7 +161,21 @@ void LoadTexture(char *filename,int dim);
 
 int main(int argc, char *argv[]){ // g++ -o pacman pacman->cc -lglut -lGLU -lGL -lm -l jpeg -L /usr/local/lib
 
+	printf("******************************\n");
+	printf("*** WELLCOME TO PACMAN BGC ***\n");
+	printf("******************************\n\n");
+	printf("*** Connecting with arduino..........\n");
+
 	aComm = new ArduinoComm();
+	if(!aComm->init()){
+		printf("*** Connecting with arduino.......... ERROR\n\n");
+		printf("*** CLOSING\n\n");
+		return -1;
+	}
+
+	printf("*** Connecting with arduino.......... OK\n\n");
+	printf("*** Initializing game................\n");
+
 	aProtocol.state = false;
 
  	int w, h;
@@ -188,7 +205,6 @@ int main(int argc, char *argv[]){ // g++ -o pacman pacman->cc -lglut -lGLU -lGL 
     map->initialize();
     //map->printMap();
 
-    //printf("%i\n",map->GetInitialMeal());
     ghostsTimer = map->GetInitialMeal()/NUM_GHOST/INCREMENT_GHOST_TIMER;
 	
 	cellWidth = WIDTH/map->GetWidth();
@@ -197,37 +213,39 @@ int main(int argc, char *argv[]){ // g++ -o pacman pacman->cc -lglut -lGLU -lGL 
 	radiParticle = (fmin(cellWidth,-cellHeight))/2;
 	radiFood =  radiParticle/4;
 
-	//printf("%f\n", radiParticle);
-
     initializeParticles();
 
     anglealpha = 45;
     anglebeta = 60;
 
-    aComm->startCallibration();
-    /*if(!aComm->startCallibration()){
-    	printf("COMMUNICATION ERROR\n");
-    	return 0;
-    }*/
+    printf("*** Initializing game................ OK\n\n");
+    printf("*** Calibrating BGC..................\n");
+	aComm->startCallibration();
+
     for(int x = CALIBRATION_TIME; x >= 0; x--){
     	switch(x){
     		case CALIBRATION_TIME:
-    			printf("WELLCOME TO PACMAN BGC\n");
+    			//printf("\n");
 				break;
 			case 3:
-				printf("3\n");
+				printf("*** 3\n");
 				break;
 			case 2:
-				printf("2\n");
+				printf("*** 2\n");
 				break;
 			case 1:
-				printf("1\n");
+				printf("*** 1\n");
 				break;
 			case 0:
-				printf("GOOO!\n");
+				printf("*** GOOO!\n");
 				break;
 			default:
-				printf("\n");
+				if(x%2 == 0){
+					printf("*** Calibrating...\n");
+				}else{
+					printf("***\n");
+				}
+				
     	}
     	usleep(1000000);
     }
@@ -308,7 +326,7 @@ void display(){
 	position[0]=0; position[1]=0; position[2]=0; position[3]=1; 
 	glLightiv(GL_LIGHT0,GL_POSITION,position);
 
-	color[0]=0.1; color[1]=0.1; color[2]=0.1; color[3]=1;
+	color[0]=realAmbientLevel; color[1]=realAmbientLevel; color[2]=realAmbientLevel; color[3]=realAmbientLevel;
 	glLightfv(GL_LIGHT0,GL_AMBIENT,color);
 
 	color[0]=0; color[1]=0; color[2]=0; color[3]=1;
@@ -428,20 +446,58 @@ void setParamsFromArduino(){
 		case LEFT:
 			pacman->SetNewDirection(LEFT);
 			break;
+		case 4:
+			switch(pacman->GetCurrentDirection()){
+				case UP:
+					pacman->SetNewDirection(DOWN);
+					break;
+				case DOWN:
+					pacman->SetNewDirection(UP);
+					break;
+				case RIGHT:
+					pacman->SetNewDirection(LEFT);
+					break;
+				case LEFT:
+					pacman->SetNewDirection(RIGHT);
+					break;
+			}
+			break;
 	}
 
 	//Velocity
 	realTimeToMove = TIMETOMOVE / aProtocol.pacmanVelocity;
 
 	//Ambient
-
+	switch(aProtocol.pacmanAmbient){
+		case 1:
+			realAmbientLevel = 0.9;
+			break;
+		case 2:
+			realAmbientLevel = 0.5;
+			break;
+		case 3:
+			realAmbientLevel = 0;
+			break;
+		default:
+			realAmbientLevel = 1;
+			break;
+	}
 	//Front visivility
-	pacman->SetDegreeVisivility(45/aProtocol.pacmanVision);
+	switch(aProtocol.pacmanVision){
+		case 1:
+			pacman->SetDegreeVisivility(60);
+			break;
+		case 2:
+			pacman->SetDegreeVisivility(10);
+			break;
+	}
+	
 
 }
 
 void idle()
 {
+
   long t;	
 
   t=glutGet(GLUT_ELAPSED_TIME); 
@@ -457,12 +513,14 @@ void idle()
       last_t=t;
     }
 
-    if(aProtocol.state){
-    	printf("Direction: %i, Velocity: %i, Ambient: %i, Vision: %i\n\n", 
-    		aProtocol.pacmanDirection, aProtocol.pacmanVelocity, aProtocol.pacmanAmbient, aProtocol.pacmanVision);
+    //printf("IDLE\n");
 
-    	aProtocol.state = false;
-    }
+	if(aProtocol.state){
+		printf("Direction: %i, Velocity: %i, Ambient: %i, Vision: %i\n\n", 
+			aProtocol.pacmanDirection, aProtocol.pacmanVelocity, aProtocol.pacmanAmbient, aProtocol.pacmanVision);
+		setParamsFromArduino();
+		aProtocol.state = false;
+	}
 
   // PACMAN
   if(pacman->GetState() == QUIET)

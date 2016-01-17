@@ -11,21 +11,21 @@
 class ArduinoComm{
 
   public:
-    int fd, n, i;
+    int fd, n, i, c = 0;
     
     struct termios toptions;
-    bool running;
     
 
     ArduinoComm(){
+    }
 
-      running = false;
-
+    bool init(){
       /* open serial port */
-      fd = open("/dev/ttyACM2", O_RDWR | O_NOCTTY);
-      printf("fd opened as %i\n", fd);
+      //fd = open("/dev/ttySIM0", O_RDWR | O_NOCTTY);
+      fd = open( "/dev/ttyACM0", O_RDWR| O_NOCTTY );
+      if(DEBUG) printf("fd opened as %i\n", fd);
 
-       //usleep(3500000);
+      usleep(3500000);
 
       /* get current serial port settings */
       tcgetattr(fd, &toptions);
@@ -41,50 +41,68 @@ class ArduinoComm{
       toptions.c_lflag |= ICANON;
       /* commit the serial port settings */
       tcsetattr(fd, TCSANOW, &toptions);
+
+      if(fd > 0)return true;
+      return false;
     }
 
     void startCallibration(){
-      char buf[64];
-      write(fd, "2", 1);
-      /*n = read(fd, buf, 64);
-      printf("%i bytes read, buffer contains: %s\n\n", n, buf);
-      if(buf[0] == '0') return true;
-      return false;*/
+      write(fd, "1", 1);
     }
 
     void readDataTask(){
-      char buf[64];
-      printf("Getting values......\n");
-      write(fd, "1", 1);
-      n = read(fd, buf, 64);
-      // insert terminating zero in the string 
-      buf[n] = 0;
+      int n = 0,
+          spot = 0;
+      char buf = '\0';
 
-      printf("%i bytes read, buffer contains: %s\n\n", n, buf);
-     // usleep(100000);
+      /* Whole response*/
+      char response[1024];
+      memset(response, '\0', sizeof response);
 
-      if(n != 4){
+      if(DEBUG)cout << "Start read" << std::endl;
+
+      do {
+          n = read( fd, &buf, 1 );
+          sprintf( &response[spot], "%c", buf );
+          spot += n;
+          if(DEBUG) cout << "Spot: " << spot << std::endl;
+      } while( buf != '\n' && n > 0);
+
+      if(DEBUG){
+        if (n < 0) {
+          std::cout << "Error reading: " << strerror(errno) << std::endl;
+        }
+        else if (n == 0) {
+            std::cout << "Read nothing!" << std::endl;
+        }
+        else {
+            std::cout << c << " --> Response: " << response << std::endl;
+        }
+      }
+      c++;
+
+      if(spot != 10){
+        if(DEBUG)printf("BAD BYTEES!!!!!!!\n");
         return;
       }
 
       
-      aProtocol.pacmanDirection = buf[0] - '0';
-      aProtocol.pacmanVision = buf[6] - '0';
-      aProtocol.pacmanVelocity = buf[2] - '0';
-      aProtocol.pacmanAmbient = buf[4] - '0';
+      aProtocol.pacmanDirection = response[0] - '0';
+      aProtocol.pacmanVision = response[6] - '0';
+      aProtocol.pacmanVelocity = response[2] - '0';
+      aProtocol.pacmanAmbient = response[4] - '0';
       aProtocol.state = true;
     }
 
     void readData(){
-      
-      //if(!running){
-        //printf("Send thread\n");
-        //running = true;
+
+      //write(fd, "1", 1);
       while(true){
-        printf("Srart thread\n");
+        readDataTask();
+        /*printf("Srart thread\n");
         thread t1(&ArduinoComm::readDataTask,this);
         t1.join();
-        printf("End thread\n");
+        printf("End thread\n");*/
       }
         
       //}
