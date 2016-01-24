@@ -389,6 +389,53 @@ void display(){
   		}
 	}
 
+	/////////////
+
+	glMatrixMode(GL_PROJECTION);
+	  glPushMatrix();
+	  glLoadIdentity();
+	  gluOrtho2D(0.0, WIDTH, 0.0, HEIGHT);
+	  glMatrixMode(GL_MODELVIEW);
+	  glPushMatrix();
+	  glLoadIdentity();
+
+	  glRasterPos2i(10, HEIGHT-20);
+	  string s = "LEVEL: " +to_string(level);;
+	  void * font = GLUT_BITMAP_9_BY_15;
+	  for (string::iterator i = s.begin(); i != s.end(); ++i)
+	  {
+	    char c = *i;
+	    glColor3d(1.0, 0.0, 0.0);
+	    glutBitmapCharacter(font, c);
+	  }
+
+
+	  glRasterPos2i(10, 10);
+	  s = "LIVES: " +to_string(lives);;
+	  for (string::iterator i = s.begin(); i != s.end(); ++i)
+	  {
+	    char c = *i;
+	    glColor3d(1.0, 0.0, 0.0);
+	    glutBitmapCharacter(font, c);
+	  }
+
+
+	  glRasterPos2i(10, 30);
+	  s = "POINTS: " +to_string(points);;
+	  for (string::iterator i = s.begin(); i != s.end(); ++i)
+	  {
+	    char c = *i;
+	    glColor3d(1.0, 0.0, 0.0);
+	    glutBitmapCharacter(font, c);
+	  }
+
+	  glMatrixMode(GL_MODELVIEW);
+	  glPopMatrix();
+	  glMatrixMode(GL_PROJECTION);
+	  glPopMatrix();
+
+	////////////
+
 	glutSwapBuffers();
 
 	if(!hasFood){
