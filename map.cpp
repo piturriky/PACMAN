@@ -17,7 +17,6 @@ class Map{
 	    	cells[i] = new Cell[w];
 	    }
 
-	    srand(time(NULL));
 	    getRandoomWallColor();
 	    initialMeal = 0;
      }

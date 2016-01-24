@@ -36,12 +36,11 @@
 #include <thread>
 #include <ctime>
 #include <algorithm>
+#include <sstream>
+#include <fstream>
+#include <vector>
 
 using namespace std;
-
-#define DEBUG false
-
-#define IA_VERSION false
 
 #define WINDOW_NAME "PACMAN"
 
@@ -51,8 +50,8 @@ using namespace std;
 #define ESTANDARD_CELLS_WIDTH 31
 #define ESTANDARD_CELLS_HEIGHT 28
 
-#define MIN_CELLS_WIDTH 21
-#define MIN_CELLS_HEIGHT 20
+#define MIN_CELLS_WIDTH 13
+#define MIN_CELLS_HEIGHT 12
 
 #define CORRIDOR 0
 #define WALL 1
@@ -83,9 +82,6 @@ using namespace std;
 #define QUIET 0
 #define MOVE 1
 
-//NUMBER OF PARTICLES
-#define NUM_GHOST 3
-
 #define INCREMENT_GHOST_TIMER 3
 
 //TIME TO MOVE
@@ -109,8 +105,23 @@ using namespace std;
 
 #define CALIBRATION_TIME 20
 
+#define CONFIG_FILE "config.cfg"
+#define SCORES_FILE "scores.txt"
+
+//Mode Variables
+bool DEBUG = false;
+bool arduinoActive = false;
+bool IAActive = false;
+
+// Game Variables
+int level = 0;
+int lives = 3;
+int numGhosts = 0;
+int points = 0;
+
 //VARIABLES
 int wallProbDecrease = 20;
+int glutWindow;
 float cellWidth, cellHeight,cellDepth,radiParticle,radiFood;
 struct arduinoProtocol {
 	bool state;
@@ -125,13 +136,12 @@ struct arduinoProtocol {
 #include "jpeglib.h"
 #include "ArduinoComm.cpp"
 
-Map *map;
-Particle *pacman;
-Particle *ghosts[NUM_GHOST];
+Map* map;
+Particle* pacman;
+vector<Particle*> ghosts;
 ArduinoComm *aComm;
 long last_t = 0;
 
-int points = 0;
 int ghostsTimer = 0;
 int nextGost = 1;
 
@@ -158,75 +168,65 @@ void printCellQuad(int i, int j);
 void printGroundMap();
 void ReadJPEG(char *filename,unsigned char **image,int *width, int *height);
 void LoadTexture(char *filename,int dim);
+bool ReadConfigurations();
+void insterNewLevel();
+void hunted();
+bool checkScores();
+
+void fnExit();
 
 int main(int argc, char *argv[]){ // g++ -o pacman pacman->cc -lglut -lGLU -lGL -lm -l jpeg -L /usr/local/lib
+
+	atexit(fnExit);
 
 	printf("******************************\n");
 	printf("*** WELLCOME TO PACMAN BGC ***\n");
 	printf("******************************\n\n");
-	printf("*** Connecting with arduino..........\n");
 
-	aComm = new ArduinoComm();
-	if(!aComm->init()){
-		printf("*** Connecting with arduino.......... ERROR\n\n");
+	printf("*** Reading Configurations........\n");
+	if(!ReadConfigurations()){
+		printf("*** Reading Configurations........ ERROR\n");
 		printf("*** CLOSING\n\n");
 		return -1;
 	}
+	printf("*** Reading Configurations....... OK\n\n");
 
-	printf("*** Connecting with arduino.......... OK\n\n");
-	printf("*** Initializing game................\n");
+	if(arduinoActive){
+		printf("*** Connecting with arduino..........\n");
 
-	aProtocol.state = false;
+		aComm = new ArduinoComm();
+		if(!aComm->init()){
+			printf("*** Connecting with arduino.......... ERROR\n\n");
+			printf("*** CLOSING\n\n");
+			return -1;
+		}
 
- 	int w, h;
-
- 	w = h = 0;
-
-	 if(argc == 3)
-	   {
-	    w = atoi(argv[1]);
-	    h = atoi(argv[2]);
-
-	    if(w < MIN_CELLS_WIDTH || h < MIN_CELLS_HEIGHT || w%2 == 0){
-			w = h = 0;
-	    }
-	   }
-
-	 if(!w || !h)
-	   {
-	    w = ESTANDARD_CELLS_WIDTH;
-	    h = ESTANDARD_CELLS_HEIGHT;
-	   }
-
-   if(w > 100 && h > 100) wallProbDecrease = 5;
-   else if(w > 50 && h > 50) wallProbDecrease = 10; 
-
-    map = new Map(w, h);
-    map->initialize();
-    //map->printMap();
-
-    ghostsTimer = map->GetInitialMeal()/NUM_GHOST/INCREMENT_GHOST_TIMER;
+		printf("*** Connecting with arduino.......... OK\n\n");
 	
-	cellWidth = WIDTH/map->GetWidth();
-	cellHeight = HEIGHT/map->GetHeight()*(-1);
-	cellDepth = (cellWidth-cellHeight)/4;
-	radiParticle = (fmin(cellWidth,-cellHeight))/2;
-	radiFood =  radiParticle/4;
+    	printf("*** Calibrating BGC..................\n");
+		aComm->startCallibration();
 
-    initializeParticles();
+	    for(int x = CALIBRATION_TIME; x >= 0; x--){
 
-    anglealpha = 45;
-    anglebeta = 60;
+			if(x%2 == 0){
+				printf("*** Calibrating...\n");
+			}else{
+				printf("***\n");
+			}
+	    	usleep(1000000);
+	    }
 
-    printf("*** Initializing game................ OK\n\n");
-    printf("*** Calibrating BGC..................\n");
-	aComm->startCallibration();
+	    aComm->startProcess();
+    }else{
+    	// Initialize basic params
 
-    for(int x = CALIBRATION_TIME; x >= 0; x--){
+    }
+
+    insterNewLevel();
+
+    // STARTING
+    for(int x = 3; x >= 0; x--){
     	switch(x){
-    		case CALIBRATION_TIME:
-    			//printf("\n");
-				break;
 			case 3:
 				printf("*** 3\n");
 				break;
@@ -238,25 +238,17 @@ int main(int argc, char *argv[]){ // g++ -o pacman pacman->cc -lglut -lGLU -lGL 
 				break;
 			case 0:
 				printf("*** GOOO!\n");
-				break;
-			default:
-				if(x%2 == 0){
-					printf("*** Calibrating...\n");
-				}else{
-					printf("***\n");
-				}
-				
+				break;				
     	}
     	usleep(1000000);
     }
 
-    aComm->startProcess();
 
     glutInit(&argc, argv);
 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH); 
 	glutInitWindowPosition(50,50);
 	glutInitWindowSize(WIDTH,HEIGHT);
-	glutCreateWindow(WINDOW_NAME);
+	glutWindow = glutCreateWindow(WINDOW_NAME);
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_TEXTURE_2D);
 	glEnable(GL_LIGHTING);
@@ -281,13 +273,20 @@ int main(int argc, char *argv[]){ // g++ -o pacman pacman->cc -lglut -lGLU -lGL 
 	return 0;
 }
 
+void fnExit(void){
+	printf("\n*** YOU DON'T HAVE MORE LIVES!!!\n\n");
+	checkScores();
+}
+
 void initializeParticles()
 {
 	pacman = new Particle(0.9, 0.8, 0.1);
 	pacman->SetPosition(map->GetWidth()/2, map->GetHeight()/2 - CENTERBOX/2 - 1); 
 
-	for(int i = 0; i< NUM_GHOST; i++){
-		ghosts[i] = new Particle(1,0,0);
+	ghosts.clear();
+
+	for(int i = 0; i< numGhosts; i++){
+		ghosts.push_back(new Particle(1,0,0));
 		ghosts[i]->SetPosition(map->GetWidth()/2, map->GetHeight()/2);
 	}   
 
@@ -318,8 +317,6 @@ void display(){
 	glPolygonMode(GL_FRONT,GL_FILL);
 	glPolygonMode(GL_BACK,GL_LINE);
 
-
-
 	//-- Ambient light
 	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
   
@@ -338,12 +335,14 @@ void display(){
 	glMaterialfv(GL_FRONT_AND_BACK,GL_AMBIENT_AND_DIFFUSE,material);
 
 	pacman->drawLight(0);
-	for(int i = 0; i< NUM_GHOST; i++){
+	for(int i = 0; i< numGhosts; i++){
 		ghosts[i]->drawLight(i+1);
 	}
 
 	glEnable(GL_TEXTURE_2D);
 	printGroundMap();
+
+	bool hasFood = false;
 
 	for(i=0;i<map->GetWidth();i++){
 		for(j=0;j<map->GetHeight();j++){
@@ -377,23 +376,24 @@ void display(){
 				gluDeleteQuadric(quadric);
 				
 				glEnable(GL_TEXTURE_2D);
-
-				//glVertex2i((i+FOOD_INCREMENT)*cellWidth, (j+FOOD_INCREMENT)*cellHeight);
-				//glVertex2i((i+1-FOOD_INCREMENT)*cellWidth, (j+FOOD_INCREMENT)*cellHeight);
-				//glVertex2i((i+1-FOOD_INCREMENT)*cellWidth, (j+1-FOOD_INCREMENT)*cellHeight);
-				//glVertex2i((i+FOOD_INCREMENT)*cellWidth, (j+1-FOOD_INCREMENT)*cellHeight);
-
-				//glEnd();
+				hasFood = true;
 			}
 		}
 	}
 	glDisable(GL_TEXTURE_2D);
 	pacman->draw();
-	for(int i = 0; i< NUM_GHOST; i++){
+	for(int i = 0; i< numGhosts; i++){
 		ghosts[i]->draw();
+		if(ghosts[i]->GetX() == pacman->GetX() && ghosts[i]->GetY() == pacman->GetY()){
+			hunted();
+  		}
 	}
 
 	glutSwapBuffers();
+
+	if(!hasFood){
+		insterNewLevel();
+	}
 }
 
 void keyboardArrows(int key, int x, int y){
@@ -507,16 +507,14 @@ void idle()
   else
     {
       pacman->Integrate(t-last_t);
-      for(int i = 0; i < NUM_GHOST; i++){
+      for(int i = 0; i < numGhosts; i++){
       	ghosts[i]->Integrate(t-last_t);
       }
       last_t=t;
     }
 
-    //printf("IDLE\n");
-
 	if(aProtocol.state){
-		printf("Direction: %i, Velocity: %i, Ambient: %i, Vision: %i\n\n", 
+		if(DEBUG)printf("Direction: %i, Velocity: %i, Ambient: %i, Vision: %i\n\n", 
 			aProtocol.pacmanDirection, aProtocol.pacmanVelocity, aProtocol.pacmanAmbient, aProtocol.pacmanVision);
 		setParamsFromArduino();
 		aProtocol.state = false;
@@ -554,7 +552,7 @@ void idle()
   }
 
   // GHOSTS
-	  for(int i = 0; i < NUM_GHOST; i++){
+	  for(int i = 0; i < numGhosts; i++){
 	  	if(ghosts[i]->GetState() == QUIET){
 
 	  		// Going out management
@@ -573,7 +571,7 @@ void idle()
 	  			ghosts[i]->SetCurrentDirection(-1);
 	  			ghosts[i]->SetNewDirection(-1);
 	  			ghosts[i]->OutBox();
-	  		}else if(IA_VERSION && ghosts[i]->GetNewDirection() < 0){
+	  		}else if(IAActive && ghosts[i]->GetNewDirection() < 0){
 	  			CalculateNewDirections();
 	  		}
 	  		// ghost is out, normal behavior
@@ -706,17 +704,20 @@ int GetGhostDirectionToExit(int x, int y){
 void Eat(){
 	map->EatFood(pacman->GetX(),pacman->GetY());
 	points++;
-	if(points % ghostsTimer == 0 && nextGost < NUM_GHOST){
+	if(points % ghostsTimer == 0 && nextGost < numGhosts){
 		ghosts[nextGost]->GoOut();
 		nextGost++;
 	} 
-	if(points % 10 == 0)printf("Points: %i\n", points);	
+	if(points % 10 == 0){
+		//printf("Points: %i\n", points);	
+		//insterNewLevel();
+	}
 }
 
 void CalculateNewDirections(){
 	pair<int, int> pacmanPair = make_pair(pacman->getNextX(),pacman->getNextY());
 	list<pair<int, int> > ghostsList;
-	for(int i = 0; i < NUM_GHOST; i++){
+	for(int i = 0; i < numGhosts; i++){
 		if(ghosts[i]->LastInBox())ghostsList.push_back(make_pair(ghosts[i]->getNextX(),ghosts[i]->getNextY()));
 	}
 	State* state = new State(pacmanPair,ghostsList,map,0);
@@ -902,6 +903,168 @@ void ReadJPEG(char *filename,unsigned char **image,int *width, int *height)
   free(buffer);
   jpeg_finish_decompress(&cinfo);
 } 
+
+void insterNewLevel(){
+	// INITIALATION
+    printf("*** Initializing new game................\n");
+    level ++;
+    srand(level);
+	//srand(time(NULL));
+	aProtocol.state = false;
+
+ 	int w = MIN_CELLS_WIDTH + 2 * level, h = MIN_CELLS_HEIGHT + 2 * level;
+
+   if(w > 100 && h > 100) wallProbDecrease = 5;
+   else if(w > 50 && h > 50) wallProbDecrease = 10; 
+
+    map = new Map(w, h);
+    map->initialize();
+    //map->printMap();
+
+    numGhosts = numGhosts + (level % 2);
+
+    ghostsTimer = map->GetInitialMeal()/numGhosts/INCREMENT_GHOST_TIMER;
+	
+	cellWidth = WIDTH/map->GetWidth();
+	cellHeight = HEIGHT/map->GetHeight()*(-1);
+	cellDepth = (cellWidth-cellHeight)/4;
+	radiParticle = (fmin(cellWidth,-cellHeight))/2;
+	radiFood =  radiParticle/4;
+
+	
+
+    initializeParticles();
+
+    anglealpha = 45;
+    anglebeta = 60;
+
+    printf("*** Initializing new game................ OK\n\n");
+
+}
+
+void hunted(){
+	lives --;
+	if(lives == 0) exit(0);
+	initializeParticles();
+}
+
+bool ReadConfigurations(){
+	ifstream if_file(CONFIG_FILE);
+
+	string line;
+
+	while(getline(if_file,line)){
+		istringstream is_line(line);
+
+		string key;
+
+		if(getline(is_line,key,'=')){
+			string value;
+			if(getline(is_line,value)){
+				//printf("%s ----> %s\n", key.c_str(),value.c_str());
+				if(key == "Debug_active"){
+					if(value == "true"){
+						DEBUG = true;
+						printf("*** Config Debug Mode ---> true\n");
+					}else{
+						DEBUG = false;
+						printf("*** Config Debug Mode ---> false\n");
+					}
+				}
+				if(key == "Arduino_active"){
+					if(value == "true"){
+						arduinoActive = true;
+						printf("*** Config Arduino BGC ---> true\n");
+					}else{
+						arduinoActive = false;
+						printf("*** Config Arduino BGC ---> false\n");
+					}
+				}
+				if(key == "IA_active"){
+					if(value == "true"){
+						IAActive = true;
+						printf("*** Config IA ---> true\n");
+					}else{
+						IAActive = false;
+						printf("*** Config IA ---> false\n");
+					}
+				}
+			}
+		}
+	}
+	return true;
+}
+
+bool checkScores(){
+
+	printf("\n*** HIGH SCORES\n");
+
+	ifstream if_file(SCORES_FILE);
+
+	string line;
+
+	int newScores[5];
+	string newScoresNames[5];
+
+	bool write = true;
+
+	char name [80];
+
+	for (int i = 0; i < 5; ++i)
+	{
+		if(getline(if_file,line)){
+			istringstream is_line(line);
+
+			string key;
+
+			if(getline(is_line,key,'=')){
+				string value;
+				if(getline(is_line,value)){
+					//printf("%s ----> %s\n", key.c_str(),value.c_str());
+					if(write && points >= stoi(key)){
+						printf("*** NEW HIGH SCORE POSITION %i\n", i +1);
+						printf("*** Enter your name: ");
+						scanf ("%79s",name); 
+
+						newScores[i] = points;
+						string str(name);
+						newScoresNames[i] = str;
+						i++;
+						write = false;
+					}
+					if(i < 5){
+						newScores[i] = stoi(key);
+						newScoresNames[i] = value;
+					}
+				}
+			}
+		}else if (write){
+			printf("*** NEW HIGH SCORE POSITION %i\n", i +1);
+			printf("*** Enter your name: ");
+			scanf ("%79s",name); 
+			newScores[i] = points;
+			string str(name);
+			newScoresNames[i] = str;
+			write = false;
+		}else{
+			newScores[i] = 0;
+			newScoresNames[i] = "Empty";
+		}
+	}
+	printf("\n");
+
+	ofstream myfile;
+	myfile.open (SCORES_FILE);
+
+	for (int i = 0; i < 5; ++i){
+		printf("*** POSITION %i: %s --> %i\n", i + 1,newScoresNames[i].c_str(),newScores[i]);
+		myfile << newScores[i] << "=" << newScoresNames[i] << "\n";
+	}
+	myfile.close();
+	printf("\n");
+}
+
+		
 
 
 
