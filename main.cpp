@@ -39,6 +39,7 @@
 #include <sstream>
 #include <fstream>
 #include <vector>
+#include <climits>
 
 using namespace std;
 
@@ -763,13 +764,15 @@ void Eat(){
 
 void CalculateNewDirections(){
 	pair<int, int> pacmanPair = make_pair(pacman->getNextX(),pacman->getNextY());
-	list<pair<int, int> > ghostsList;
+	vector<pair<int, int> > ghostsList;
+	AlphaBeta ab;
 	for(int i = 0; i < numGhosts; i++){
 		if(ghosts[i]->LastInBox())ghostsList.push_back(make_pair(ghosts[i]->getNextX(),ghosts[i]->getNextY()));
 	}
-	State* state = new State(pacmanPair,ghostsList,map,0);
-
-
+	State *state = new State(pacmanPair,ghostsList,map,level, 0);
+	vector<int> ghostDirections = ab.alphaBetaDesition(*state);
+	for(int i = 0; i < numGhosts; i++)
+		if (ghosts[i]->LastInBox())ghosts[i]->SetNewDirection(ghostDirections[i]);
 }
 
 void PositionObserver(float alpha,float beta,int radi)
