@@ -113,11 +113,25 @@ bool DEBUG = false;
 bool arduinoActive = false;
 bool IAActive = false;
 
+bool modeSummary = false;
+bool modeHighScore = false;
+bool modeBetweenLevels = false;
+bool modeStart = true;
+
 // Game Variables
 int level = 0;
 int lives = 3;
 int numGhosts = 0;
 int points = 0;
+string playerName = "";
+
+int lowerScore = 0;
+
+string scores[5];
+
+bool newGame = true;
+
+string betweenLevelsNum = "3";
 
 //VARIABLES
 int wallProbDecrease = 20;
@@ -172,12 +186,20 @@ bool ReadConfigurations();
 void insterNewLevel();
 void hunted();
 bool checkScores();
+void finalSummary();
+void highScore();
+void getScores();
+void saveNewScore();
+void betweenLevels();
+void startScreen();
+string BoolToString(bool b);
 
 void fnExit();
 
 int main(int argc, char *argv[]){ // g++ -o pacman pacman->cc -lglut -lGLU -lGL -lm -l jpeg -L /usr/local/lib
 
-	atexit(fnExit);
+	//atexit(fnExit);
+	getScores();
 
 	printf("******************************\n");
 	printf("*** WELLCOME TO PACMAN BGC ***\n");
@@ -222,27 +244,7 @@ int main(int argc, char *argv[]){ // g++ -o pacman pacman->cc -lglut -lGLU -lGL 
 
     }
 
-    insterNewLevel();
-
-    // STARTING
-    for(int x = 3; x >= 0; x--){
-    	switch(x){
-			case 3:
-				printf("*** 3\n");
-				break;
-			case 2:
-				printf("*** 2\n");
-				break;
-			case 1:
-				printf("*** 1\n");
-				break;
-			case 0:
-				printf("*** GOOO!\n");
-				break;				
-    	}
-    	usleep(1000000);
-    }
-
+    //insterNewLevel();
 
     glutInit(&argc, argv);
 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH); 
@@ -294,6 +296,11 @@ void initializeParticles()
 }
 
 void display(){
+	if(modeStart) return startScreen();
+	if(modeSummary) return finalSummary();
+	if(modeHighScore) return highScore();
+	if(modeBetweenLevels) return betweenLevels();
+
 	int i,j;
 
 	GLint position[4];
@@ -444,12 +451,25 @@ void display(){
 }
 
 void keyboardArrows(int key, int x, int y){
+
+	if(modeHighScore){
+		return;
+	}
+
 	switch(key)
 	{
 		case GLUT_KEY_UP:
+			if(modeSummary || modeStart){
+				newGame = true;
+				return;
+			}
 			pacman->SetNewDirection(UP);
 			break;
 		case GLUT_KEY_DOWN:
+			if(modeSummary || modeStart){
+				newGame = false;
+				return;
+			}
 			pacman->SetNewDirection(DOWN);
 			break;
 		case GLUT_KEY_RIGHT:
@@ -463,6 +483,37 @@ void keyboardArrows(int key, int x, int y){
 
 void keyboard(unsigned char c,int x,int y)
 {
+
+	if(modeSummary || modeStart){
+		if(c == 13){
+			if(newGame){
+				lives = 3;
+				level = 0;
+				points = 0;
+				numGhosts = 0;
+				modeHighScore = false;
+				modeSummary = false;
+				modeStart = false;
+				insterNewLevel();
+			}else{
+				exit(0);
+			}
+		}
+		return;
+	}else if(modeHighScore){
+		if(c == 8 && playerName.length() > 0){
+			playerName = playerName.substr(0, playerName.length()-1);
+		}else if((c >= '1' && c <= '9') || (c >= 'A' && c <= 'z') || c == ' '){
+			if(playerName.length() > 6) return;
+			playerName = playerName.append(1,c);
+		}else if(c == 13){
+			saveNewScore();
+			modeHighScore = false;
+			modeSummary = true;
+		}
+		return;
+	}
+
   int i,j;
 
   if (c=='i' && anglebeta<=(90-4))
@@ -544,8 +595,12 @@ void setParamsFromArduino(){
 
 void idle()
 {
+	//if(modeSummary) return;
 
-  long t;	
+	if(modeBetweenLevels || modeHighScore || modeStart || modeSummary){
+
+	}else{
+		long t;	
 
   t=glutGet(GLUT_ELAPSED_TIME); 
 
@@ -654,6 +709,9 @@ void idle()
 		  	 }
 	  	}
 	  }
+	}
+
+  
 
 	  glutPostRedisplay();
 	}
@@ -951,10 +1009,54 @@ void ReadJPEG(char *filename,unsigned char **image,int *width, int *height)
   jpeg_finish_decompress(&cinfo);
 } 
 
+void callback(int v){
+	if(v > 0){
+		betweenLevelsNum = to_string(v);
+		glutTimerFunc(1000,callback,v - 1);
+	}else if(v == 0){
+		betweenLevelsNum = "FIGHT!!!";
+		glutTimerFunc(1000,callback,v - 1);
+	}else{
+		modeBetweenLevels = false;
+	}
+	
+}
+
 void insterNewLevel(){
 	// INITIALATION
     printf("*** Initializing new game................\n");
     level ++;
+	modeBetweenLevels = true;
+	glutTimerFunc(0,callback,3);
+
+	/*// STARTING
+    for(int x = 3; x >= 0; x--){
+    	switch(x){
+			case 3:
+				printf("*** 3\n");
+				betweenLevelsNum = "3";
+				break;
+			case 2:
+				printf("*** 2\n");
+				betweenLevelsNum = "2";
+				break;
+			case 1:
+				printf("*** 1\n");
+				betweenLevelsNum = "1";
+				break;
+			case 0:
+				printf("*** GOOO!\n");
+				betweenLevelsNum = "FIGHT!!!!";
+				break;				
+    	}
+    	usleep(1000000);
+    }
+
+    printf("modeStart: %s, modeSummary: %s, modeBetweenLevels: %s, modeHighScore: %s\n", 
+    	BoolToString(modeStart).c_str(), BoolToString(modeSummary).c_str(), BoolToString(modeBetweenLevels).c_str(), BoolToString(modeHighScore).c_str());
+	*/
+	
+    
     srand(level);
 	//srand(time(NULL));
 	aProtocol.state = false;
@@ -978,21 +1080,13 @@ void insterNewLevel(){
 	radiParticle = (fmin(cellWidth,-cellHeight))/2;
 	radiFood =  radiParticle/4;
 
-	
-
     initializeParticles();
 
     anglealpha = 45;
     anglebeta = 60;
 
     printf("*** Initializing new game................ OK\n\n");
-
-}
-
-void hunted(){
-	lives --;
-	if(lives == 0) exit(0);
-	initializeParticles();
+    //modeBetweenLevels = false;
 }
 
 bool ReadConfigurations(){
@@ -1111,8 +1205,314 @@ bool checkScores(){
 	printf("\n");
 }
 
-		
+void saveNewScore(){
+	ifstream if_file(SCORES_FILE);
 
+	string line;
+
+	int newScores[5];
+	string newScoresNames[5];
+
+	bool write = true;
+
+	char name [80];
+
+	for (int i = 0; i < 5; ++i)
+	{
+		if(getline(if_file,line)){
+			istringstream is_line(line);
+
+			string key;
+
+			if(getline(is_line,key,'=')){
+				string value;
+				if(getline(is_line,value)){
+					//printf("%s ----> %s\n", key.c_str(),value.c_str());
+					if(write && points >= stoi(key)){
+
+						newScores[i] = points;
+						newScoresNames[i] = playerName;
+						scores[i] = playerName + "............. " + to_string(points);
+						i++;
+						write = false;
+					}
+					if(i < 5){
+						newScores[i] = stoi(key);
+						newScoresNames[i] = value;
+					}
+					scores[i] = value + "............. " + key;
+				}
+			}
+		}else if (write){
+			newScores[i] = points;
+			newScoresNames[i] = playerName;
+			write = false;
+			scores[i] = playerName + "............. " + to_string(points);
+		}else{
+			newScores[i] = 0;
+			newScoresNames[i] = "Empty";
+		}
+	}
+
+	ofstream myfile;
+	myfile.open (SCORES_FILE);
+
+	for (int i = 0; i < 5; ++i){
+		myfile << newScores[i] << "=" << newScoresNames[i] << "\n";
+	}
+	myfile.close();
+}
+
+void getScores(){
+	ifstream if_file(SCORES_FILE);
+
+	string line;
+
+	for (int i = 0; i < 5; ++i)
+	{
+		if(getline(if_file,line)){
+			istringstream is_line(line);
+			string key;
+			if(getline(is_line,key,'=')){
+				string value;
+				if(getline(is_line,value)){
+					scores[i] = value + "............. " + key; 
+					if(i == 4) lowerScore = stoi(key);
+				}
+			}
+		}
+	}
+}
+
+void hunted(){
+	lives --;
+	if(lives == 0) {
+		//exit(0);
+		if(points >= lowerScore){
+			modeHighScore = true;
+		}else{
+			getScores();
+			modeSummary = true; 
+		}
+		return;
+	}
+	initializeParticles();
+}
+
+void startScreen(){
+	glClearColor(0.0,0.0,0.0,0.0);
+	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+	/////////////
+
+	glMatrixMode(GL_PROJECTION);
+	  glPushMatrix();
+	  glLoadIdentity();
+	  gluOrtho2D(0.0, WIDTH, 0.0, HEIGHT);
+	  glMatrixMode(GL_MODELVIEW);
+	  glPushMatrix();
+	  glLoadIdentity();
+
+	  void * font = GLUT_BITMAP_9_BY_15;
+
+	  string newG = "";
+	string exitG = "";
+	if(newGame){
+		newG = "---> New Game";
+		exitG= "     Exit";
+	}else{
+		newG = "     New Game";
+		exitG= "---> Exit";
+	}
+	int x = WIDTH/2 - 80;
+	int y = HEIGHT/2 - 40;
+	glRasterPos2i(x, y);
+	string s = newG;
+	for (string::iterator i = s.begin(); i != s.end(); ++i)
+	{
+		char c = *i;
+		glColor3d(1.0, 0.0, 0.0);
+		glutBitmapCharacter(font, c);
+	}
+	y = y - 20;
+	glRasterPos2i(x, y);
+	s = exitG;
+	for (string::iterator i = s.begin(); i != s.end(); ++i)
+	{
+		char c = *i;
+		glColor3d(1.0, 0.0, 0.0);
+		glutBitmapCharacter(font, c);
+	}
+
+	  glMatrixMode(GL_MODELVIEW);
+	  glPopMatrix();
+	  glMatrixMode(GL_PROJECTION);
+	  glPopMatrix();
+
+	////////////
+	  glutSwapBuffers();
+}
+
+void highScore(){
+	glClearColor(0.0,0.0,0.0,0.0);
+	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+	/////////////
+
+	glMatrixMode(GL_PROJECTION);
+	  glPushMatrix();
+	  glLoadIdentity();
+	  gluOrtho2D(0.0, WIDTH, 0.0, HEIGHT);
+	  glMatrixMode(GL_MODELVIEW);
+	  glPushMatrix();
+	  glLoadIdentity();
+
+	  glRasterPos2i(WIDTH/2 - 60 , HEIGHT/2 + 30);
+	  string s = "NEW HIGH SCORE!!!!!";
+	  void * font = GLUT_BITMAP_9_BY_15;
+	  for (string::iterator i = s.begin(); i != s.end(); ++i)
+	  {
+	    char c = *i;
+	    glColor3d(1.0, 0.0, 0.0);
+	    glutBitmapCharacter(font, c);
+	  }
+
+	  glRasterPos2i(WIDTH/2 - 60 , HEIGHT/2);
+	  s = "Enter your name: " + playerName;
+	  for (string::iterator i = s.begin(); i != s.end(); ++i)
+	  {
+	    char c = *i;
+	    glColor3d(1.0, 0.0, 0.0);
+	    glutBitmapCharacter(font, c);
+	  }
+
+	  glMatrixMode(GL_MODELVIEW);
+	  glPopMatrix();
+	  glMatrixMode(GL_PROJECTION);
+	  glPopMatrix();
+
+	////////////
+	  glutSwapBuffers();
+}
+
+void finalSummary(){
+	glClearColor(0.0,0.0,0.0,0.0);
+	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+	/////////////
+
+	glMatrixMode(GL_PROJECTION);
+	glPushMatrix();
+	glLoadIdentity();
+	gluOrtho2D(0.0, WIDTH, 0.0, HEIGHT);
+	glMatrixMode(GL_MODELVIEW);
+	glPushMatrix();
+	glLoadIdentity();
+
+	string s = "";
+	void * font = GLUT_BITMAP_9_BY_15;
+
+	int x = WIDTH/2 - 80;
+	int y = HEIGHT/2 + 70;
+
+	s = "PACMAN HIGH SCORES";
+	glRasterPos2i(x, y);
+	for (string::iterator i = s.begin(); i != s.end(); ++i)
+	{
+		char c = *i;
+		glColor3d(1.0, 0.0, 0.0);
+		glutBitmapCharacter(font, c);
+	}
+
+	y = y - 40;
+	x = WIDTH/2 - 130;
+	for(int i = 0; i< 5; i++){
+		glRasterPos2i(x, y);
+		s = "Position " + to_string(i +1) + ": "+ scores[i];
+		for (string::iterator i = s.begin(); i != s.end(); ++i)
+		{
+			char c = *i;
+			glColor3d(1.0, 0.0, 0.0);
+			glutBitmapCharacter(font, c);
+		}
+		y = y - 20;
+	}
+
+	string newG = "";
+	string exitG = "";
+	if(newGame){
+		newG = "---> New Game";
+		exitG= "     Exit";
+	}else{
+		newG = "     New Game";
+		exitG= "---> Exit";
+	}
+	x = WIDTH/2 - 80;
+	y = y - 40;
+	glRasterPos2i(x, y);
+	s = newG;
+	for (string::iterator i = s.begin(); i != s.end(); ++i)
+	{
+		char c = *i;
+		glColor3d(1.0, 0.0, 0.0);
+		glutBitmapCharacter(font, c);
+	}
+	y = y - 20;
+	glRasterPos2i(x, y);
+	s = exitG;
+	for (string::iterator i = s.begin(); i != s.end(); ++i)
+	{
+		char c = *i;
+		glColor3d(1.0, 0.0, 0.0);
+		glutBitmapCharacter(font, c);
+	}
+
+	  glMatrixMode(GL_MODELVIEW);
+	  glPopMatrix();
+	  glMatrixMode(GL_PROJECTION);
+	  glPopMatrix();
+
+	////////////
+	  glutSwapBuffers();
+}
+
+void betweenLevels(){
+	glClearColor(0.0,0.0,0.0,0.0);
+	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+	/////////////
+
+	glMatrixMode(GL_PROJECTION);
+	glPushMatrix();
+	glLoadIdentity();
+	gluOrtho2D(0.0, WIDTH, 0.0, HEIGHT);
+	glMatrixMode(GL_MODELVIEW);
+	glPushMatrix();
+	glLoadIdentity();
+
+	glRasterPos2i(WIDTH/2 -20, HEIGHT/2 + 40);
+	string s = "LEVEL " + to_string(level);
+	void * font = GLUT_BITMAP_9_BY_15;
+	for (string::iterator i = s.begin(); i != s.end(); ++i)
+	{
+		char c = *i;
+		glColor3d(1.0, 0.0, 0.0);
+		glutBitmapCharacter(font, c);
+	}
+
+	glRasterPos2i(WIDTH/2, HEIGHT/2);
+	s = betweenLevelsNum;
+	for (string::iterator i = s.begin(); i != s.end(); ++i)
+	{
+		char c = *i;
+		glColor3d(1.0, 0.0, 0.0);
+		glutBitmapCharacter(font, c);
+	}
+
+	glMatrixMode(GL_MODELVIEW);
+	glPopMatrix();
+	glMatrixMode(GL_PROJECTION);
+	glPopMatrix();
+
+	////////////
+	glutSwapBuffers();
+}
 
 
 /*--------------------------------------------------------*/
@@ -1149,4 +1549,9 @@ void LoadTexture(char *filename,int dim)
 
   free(buffer);
   free(buffer2);
+}
+
+string BoolToString(bool b)
+{
+  return b ? "true" : "false";
 }
