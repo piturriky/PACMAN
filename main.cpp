@@ -242,7 +242,8 @@ int main(int argc, char *argv[]){ // g++ -o pacman pacman->cc -lglut -lGLU -lGL 
 	    aComm->startProcess();
     }else{
     	// Initialize basic params
-
+    	realAmbientLevel = 0.5;
+    	//pacman->SetDegreeVisivility(60);
     }
 
     //insterNewLevel();
@@ -1031,34 +1032,6 @@ void insterNewLevel(){
     level ++;
 	modeBetweenLevels = true;
 	glutTimerFunc(0,callback,3);
-
-	/*// STARTING
-    for(int x = 3; x >= 0; x--){
-    	switch(x){
-			case 3:
-				printf("*** 3\n");
-				betweenLevelsNum = "3";
-				break;
-			case 2:
-				printf("*** 2\n");
-				betweenLevelsNum = "2";
-				break;
-			case 1:
-				printf("*** 1\n");
-				betweenLevelsNum = "1";
-				break;
-			case 0:
-				printf("*** GOOO!\n");
-				betweenLevelsNum = "FIGHT!!!!";
-				break;				
-    	}
-    	usleep(1000000);
-    }
-
-    printf("modeStart: %s, modeSummary: %s, modeBetweenLevels: %s, modeHighScore: %s\n", 
-    	BoolToString(modeStart).c_str(), BoolToString(modeSummary).c_str(), BoolToString(modeBetweenLevels).c_str(), BoolToString(modeHighScore).c_str());
-	*/
-	
     
     srand(level);
 	//srand(time(NULL));
