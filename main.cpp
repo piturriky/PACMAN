@@ -86,7 +86,8 @@ using namespace std;
 #define INCREMENT_GHOST_TIMER 3
 
 //TIME TO MOVE
-#define TIMETOMOVE 500
+// TODO : #define TIMETOMOVE 500
+#define TIMETOMOVE 200
 
 #define MAX_F 255.0f
 #define PI 3.1416
@@ -489,10 +490,10 @@ void keyboard(unsigned char c,int x,int y)
 	if(modeSummary || modeStart){
 		if(c == 13){
 			if(newGame){
-				lives = 3;
-				level = 0;
+				lives = 5; //TODO : 3
+				level = 0; //TODO : 0
 				points = 0;
-				numGhosts = 0;
+				numGhosts = 1; //TODO : 0
 				modeHighScore = false;
 				modeSummary = false;
 				modeStart = false;
@@ -651,6 +652,7 @@ void idle()
 	  	 		pacman->InitMovement(pacman->GetX() - 1, pacman->GetY(), realTimeToMove);
 	  	 		break;
 	  	 }
+	  	 cout << "PACMAN NEXT POSITION::::::::::" << pacman->getNextX() << ";" << pacman->getNextY() << "\n";
   	 }
   	 
   }
@@ -675,12 +677,13 @@ void idle()
 	  			ghosts[i]->SetCurrentDirection(-1);
 	  			ghosts[i]->SetNewDirection(-1);
 	  			ghosts[i]->OutBox();
-	  		}else if(IAActive && ghosts[i]->GetNewDirection() < 0){
-	  			CalculateNewDirections();
+	  			cout << "OUT!" << ghosts[i]->LastInBox() << "\n";
 	  		}
 	  		// ghost is out, normal behavior
 	  		else{
-	  			ghosts[i]->SetNewDirection(GetGhostDirection(ghosts[i]->GetX(), ghosts[i]->GetY(),ghosts[i]->GetCurrentDirection()));
+	  			if (IAActive) CalculateNewDirections();
+	  			else
+	  				ghosts[i]->SetNewDirection(GetGhostDirection(ghosts[i]->GetX(), ghosts[i]->GetY(),ghosts[i]->GetCurrentDirection()));
 	  			//printf("OUT: %i, %i, %i \n",ghosts[i]->GetX(),ghosts[i]->GetY(), ghosts[i]->GetNewDirection());
 	  		}
 
@@ -696,16 +699,16 @@ void idle()
 			  	 {
 			  	 	
 			  	 	case UP:
-			  	 		ghosts[i]->InitMovement(ghosts[i]->GetX(), ghosts[i]->GetY() + 1, realTimeToMove);
+			  	 		ghosts[i]->InitMovement(ghosts[i]->GetX(), ghosts[i]->GetY() + 1, realTimeToMove + 100);
 			  	 		break;
 			  	 	case DOWN:
-			  	 		ghosts[i]->InitMovement(ghosts[i]->GetX(), ghosts[i]->GetY() - 1, realTimeToMove);
+			  	 		ghosts[i]->InitMovement(ghosts[i]->GetX(), ghosts[i]->GetY() - 1, realTimeToMove + 100);
 			  	 		break;
 			  	 	case RIGHT:
-			  	 		ghosts[i]->InitMovement(ghosts[i]->GetX() + 1, ghosts[i]->GetY(), realTimeToMove);
+			  	 		ghosts[i]->InitMovement(ghosts[i]->GetX() + 1, ghosts[i]->GetY(), realTimeToMove + 100);
 			  	 		break;
 			  	 	case LEFT:
-			  	 		ghosts[i]->InitMovement(ghosts[i]->GetX() - 1, ghosts[i]->GetY(), realTimeToMove);
+			  	 		ghosts[i]->InitMovement(ghosts[i]->GetX() - 1, ghosts[i]->GetY(), realTimeToMove + 100);
 			  	 		break;
 			  	 }
 		  	 }
@@ -823,15 +826,23 @@ void Eat(){
 
 void CalculateNewDirections(){
 	pair<int, int> pacmanPair = make_pair(pacman->getNextX(),pacman->getNextY());
+	if(!map->GetCell(pacmanPair.first, pacmanPair.second).IsType(CORRIDOR))
+		pacmanPair = make_pair(pacman->GetX(), pacman->GetY());
 	vector<pair<int, int> > ghostsList;
 	AlphaBeta ab;
 	for(int i = 0; i < numGhosts; i++){
-		if(ghosts[i]->LastInBox())ghostsList.push_back(make_pair(ghosts[i]->getNextX(),ghosts[i]->getNextY()));
+		if(!ghosts[i]->LastInBox()){
+			if(map->GetCell(ghosts[i]->getNextX(), ghosts[i]->getNextY()).IsType(CORRIDOR))
+				ghostsList.push_back(make_pair(ghosts[i]->getNextX(),ghosts[i]->getNextY()));
+			else				
+				ghostsList.push_back(make_pair(ghosts[i]->GetX(),ghosts[i]->GetY()));
+		}
 	}
-	State *state = new State(pacmanPair,ghostsList,map,level, 0);
+	//cout << ghostsList.size() << "NUMGHOSTS!!\n";
+	State *state = new State(pacmanPair,ghostsList,map,level*2);
 	vector<int> ghostDirections = ab.alphaBetaDesition(*state);
 	for(int i = 0; i < numGhosts; i++)
-		if (ghosts[i]->LastInBox())ghosts[i]->SetNewDirection(ghostDirections[i]);
+		if (!ghosts[i]->LastInBox())ghosts[i]->SetNewDirection(ghostDirections[i]);
 }
 
 void PositionObserver(float alpha,float beta,int radi)
@@ -1016,10 +1027,10 @@ void ReadJPEG(char *filename,unsigned char **image,int *width, int *height)
 void callback(int v){
 	if(v > 0){
 		betweenLevelsNum = to_string(v);
-		glutTimerFunc(1000,callback,v - 1);
+		glutTimerFunc(1/*000*/,callback,v - 1); //TODO
 	}else if(v == 0){
 		betweenLevelsNum = "FIGHT!!!";
-		glutTimerFunc(1000,callback,v - 1);
+		glutTimerFunc(1/*000*/,callback,v - 1);
 	}else{
 		modeBetweenLevels = false;
 	}

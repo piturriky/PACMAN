@@ -63,6 +63,7 @@ class Map{
      	FillMap();
      	DoMirrorMap();
      	CountMeal();
+     	printMap();
      }
 
      void EatFood(int x, int y){
