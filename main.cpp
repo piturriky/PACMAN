@@ -114,6 +114,8 @@ using namespace std;
 bool DEBUG = false;
 bool arduinoActive = false;
 bool IAActive = false;
+bool RandoomIAActive = false;
+bool DirectIAActive = false;
 
 bool modeSummary = false;
 bool modeHighScore = false;
@@ -124,8 +126,9 @@ bool modeStart = true;
 int level = 0;
 int lives = 3;
 int numGhosts = 0;
-int points = 0;
+int points = 0, levelPoints = 0;
 string playerName = "";
+int dificulty = 0;
 
 int lowerScore = 0;
 
@@ -176,6 +179,7 @@ void idle();
 void initializeParticles();
 bool CanGo(int x, int y, int direction, bool canGoOut);
 int GetGhostDirection(int x, int y, int direction);
+int GetGhostRandoomDirection(int x, int y, int num);
 int GetGhostDirectionToExit(int x, int y);
 void Eat();
 void CalculateNewDirections();
@@ -476,9 +480,19 @@ void keyboardArrows(int key, int x, int y){
 			pacman->SetNewDirection(DOWN);
 			break;
 		case GLUT_KEY_RIGHT:
+			if(modeSummary || modeStart){
+				if(dificulty<2){
+					dificulty++;
+				}
+				return;
+			}
 			pacman->SetNewDirection(RIGHT);
 			break;
 		case GLUT_KEY_LEFT:
+			if(modeSummary || modeStart){
+				if(dificulty>0)dificulty--;
+				return;
+			}
 			pacman->SetNewDirection(LEFT);
 			break;
 	}
@@ -490,13 +504,26 @@ void keyboard(unsigned char c,int x,int y)
 	if(modeSummary || modeStart){
 		if(c == 13){
 			if(newGame){
-				lives = 5; //TODO : 3
+				lives = 3; //TODO : 3
 				level = 0; //TODO : 0
 				points = 0;
-				numGhosts = 1; //TODO : 0
+				numGhosts = 0; //TODO : 0
 				modeHighScore = false;
 				modeSummary = false;
 				modeStart = false;
+				if(dificulty == 0){
+					IAActive = false;
+					RandoomIAActive=true;
+					DirectIAActive=false;
+				}else if(dificulty == 1){
+					IAActive = false;
+					RandoomIAActive=false;
+					DirectIAActive=true;
+				}else{
+					IAActive = true;
+					RandoomIAActive=false;
+					DirectIAActive=false;
+				}
 				insterNewLevel();
 			}else{
 				exit(0);
@@ -518,7 +545,7 @@ void keyboard(unsigned char c,int x,int y)
 	}
 
   int i,j;
-
+  if(c=='1') lives++;
   if (c=='i' && anglebeta<=(90-4))
     anglebeta=(anglebeta+3);
   else if (c=='k' && anglebeta>=(-90+4))
@@ -652,7 +679,7 @@ void idle()
 	  	 		pacman->InitMovement(pacman->GetX() - 1, pacman->GetY(), realTimeToMove);
 	  	 		break;
 	  	 }
-	  	 cout << "PACMAN NEXT POSITION::::::::::" << pacman->getNextX() << ";" << pacman->getNextY() << "\n";
+	  	 //cout << "PACMAN NEXT POSITION::::::::::" << pacman->getNextX() << ";" << pacman->getNextY() << "\n";
   	 }
   	 
   }
@@ -677,13 +704,17 @@ void idle()
 	  			ghosts[i]->SetCurrentDirection(-1);
 	  			ghosts[i]->SetNewDirection(-1);
 	  			ghosts[i]->OutBox();
-	  			cout << "OUT!" << ghosts[i]->LastInBox() << "\n";
+	  			//cout << "OUT!" << ghosts[i]->LastInBox() << "\n";
 	  		}
 	  		// ghost is out, normal behavior
 	  		else{
 	  			if (IAActive) CalculateNewDirections();
-	  			else
-	  				ghosts[i]->SetNewDirection(GetGhostDirection(ghosts[i]->GetX(), ghosts[i]->GetY(),ghosts[i]->GetCurrentDirection()));
+	  			else if(RandoomIAActive) ghosts[i]->SetNewDirection(GetGhostRandoomDirection(ghosts[i]->GetX(), ghosts[i]->GetY(),i));
+	  			else if(DirectIAActive) ghosts[i]->SetNewDirection(GetGhostDirection(ghosts[i]->GetX(), ghosts[i]->GetY(),ghosts[i]->GetCurrentDirection()));
+	  			else{
+	  				printf("ERROR IA CONFIGURATION\n");
+	  				exit(0);
+	  			}
 	  			//printf("OUT: %i, %i, %i \n",ghosts[i]->GetX(),ghosts[i]->GetY(), ghosts[i]->GetNewDirection());
 	  		}
 
@@ -742,6 +773,15 @@ bool CanGo(int x, int y, int direction, bool canGoOut)
 			return map->GetCell(x - 1, y).IsType(CORRIDOR);
 	}
 	return false;
+}
+
+int GetGhostRandoomDirection(int x, int y, int num){
+	srand(time(NULL)+num);
+	int i = rand() % 4;
+	while(!CanGo(x,y,i,false)){
+		i = rand() % 4;
+	}
+	return i;
 }
 
 int GetGhostDirection(int x, int y, int direction){
@@ -814,14 +854,13 @@ int GetGhostDirectionToExit(int x, int y){
 void Eat(){
 	map->EatFood(pacman->GetX(),pacman->GetY());
 	points++;
-	if(points % ghostsTimer == 0 && nextGost < numGhosts){
+	levelPoints++;
+	if(levelPoints % ghostsTimer == 0 && nextGost < numGhosts){
 		ghosts[nextGost]->GoOut();
 		nextGost++;
+		//cout << "NEW OUT\n";
 	} 
-	if(points % 10 == 0){
-		//printf("Points: %i\n", points);	
-		//insterNewLevel();
-	}
+	//cout << "OUT: " << nextGost << "\n";
 }
 
 void CalculateNewDirections(){
@@ -831,7 +870,7 @@ void CalculateNewDirections(){
 	vector<pair<int, int> > ghostsList;
 	AlphaBeta ab;
 	for(int i = 0; i < numGhosts; i++){
-		if(!ghosts[i]->LastInBox()){
+		if(!ghosts[i]->LastInBox() && !ghosts[i]->CanGoOut()){
 			if(map->GetCell(ghosts[i]->getNextX(), ghosts[i]->getNextY()).IsType(CORRIDOR))
 				ghostsList.push_back(make_pair(ghosts[i]->getNextX(),ghosts[i]->getNextY()));
 			else				
@@ -842,7 +881,7 @@ void CalculateNewDirections(){
 	State *state = new State(pacmanPair,ghostsList,map,level*2);
 	vector<int> ghostDirections = ab.alphaBetaDesition(*state);
 	for(int i = 0; i < numGhosts; i++)
-		if (!ghosts[i]->LastInBox())ghosts[i]->SetNewDirection(ghostDirections[i]);
+		if (!ghosts[i]->LastInBox() && !ghosts[i]->CanGoOut())ghosts[i]->SetNewDirection(ghostDirections[i]);
 }
 
 void PositionObserver(float alpha,float beta,int radi)
@@ -1041,6 +1080,8 @@ void insterNewLevel(){
 	// INITIALATION
     printf("*** Initializing new game................\n");
     level ++;
+    levelPoints = 0;
+    nextGost = 1;
 	modeBetweenLevels = true;
 	glutTimerFunc(0,callback,3);
     
@@ -1057,7 +1098,9 @@ void insterNewLevel(){
     map->initialize();
     //map->printMap();
 
+    printf("numGhosts: %i\n",numGhosts);
     numGhosts = numGhosts + (level % 2);
+    printf("numGhosts: %i\n",numGhosts);
 
     ghostsTimer = map->GetInitialMeal()/numGhosts/INCREMENT_GHOST_TIMER;
 	
@@ -1115,6 +1158,24 @@ bool ReadConfigurations(){
 					}else{
 						IAActive = false;
 						printf("*** Config IA ---> false\n");
+					}
+				}
+				if(key == "Randoom_IA_active"){
+					if(value == "true"){
+						RandoomIAActive = true;
+						printf("*** Config Randoom IA ---> true\n");
+					}else{
+						RandoomIAActive = false;
+						printf("*** Config Randoom IA ---> false\n");
+					}
+				}
+				if(key == "Direct_IA_active"){
+					if(value == "true"){
+						DirectIAActive = true;
+						printf("*** Config Direct IA ---> true\n");
+					}else{
+						DirectIAActive = false;
+						printf("*** Config Direct IA ---> false\n");
 					}
 				}
 			}
@@ -1292,16 +1353,62 @@ void startScreen(){
 	/////////////
 
 	glMatrixMode(GL_PROJECTION);
-	  glPushMatrix();
-	  glLoadIdentity();
-	  gluOrtho2D(0.0, WIDTH, 0.0, HEIGHT);
-	  glMatrixMode(GL_MODELVIEW);
-	  glPushMatrix();
-	  glLoadIdentity();
+	glPushMatrix();
+	glLoadIdentity();
+	gluOrtho2D(0.0, WIDTH, 0.0, HEIGHT);
+	glMatrixMode(GL_MODELVIEW);
+	glPushMatrix();
+	glLoadIdentity();
 
-	  void * font = GLUT_BITMAP_9_BY_15;
+	void * font = GLUT_BITMAP_9_BY_15;
+	void * font1 = GLUT_BITMAP_TIMES_ROMAN_24;
 
-	  string newG = "";
+	int y = HEIGHT/2 +80;
+	int x = WIDTH/2-50;
+	glRasterPos2i(x, y);
+	string s = "PACMAN";
+	for (string::iterator i = s.begin(); i != s.end(); ++i)
+	{
+		char c = *i;
+		glColor3d(1.0, 0.0, 0.0);
+		glutBitmapCharacter(font1, c);
+	}
+
+
+	y = HEIGHT/2 +20;
+	x = WIDTH/4;
+	glRasterPos2i(x, y);
+	s = "Easy";
+	for (string::iterator i = s.begin(); i != s.end(); ++i)
+	{
+		char c = *i;
+		glColor3d(1.0, 0.0, 0.0);
+		if(dificulty==0)glutBitmapCharacter(font1, c);
+		else glutBitmapCharacter(font, c);
+	}
+	x = x + WIDTH/4;
+	glRasterPos2i(x, y);
+	s = "Medium";
+	for (string::iterator i = s.begin(); i != s.end(); ++i)
+	{
+		char c = *i;
+		glColor3d(1.0, 0.0, 0.0);
+		if(dificulty==1)glutBitmapCharacter(font1, c);
+		else glutBitmapCharacter(font, c);
+	}
+	x = x+WIDTH/4;
+	glRasterPos2i(x, y);
+	s = "Hard";
+	for (string::iterator i = s.begin(); i != s.end(); ++i)
+	{
+		char c = *i;
+		glColor3d(1.0, 0.0, 0.0);
+		if(dificulty==2)glutBitmapCharacter(font1, c);
+		else glutBitmapCharacter(font, c);
+	}
+
+
+	string newG = "";
 	string exitG = "";
 	if(newGame){
 		newG = "---> New Game";
@@ -1310,10 +1417,10 @@ void startScreen(){
 		newG = "     New Game";
 		exitG= "---> Exit";
 	}
-	int x = WIDTH/2 - 80;
-	int y = HEIGHT/2 - 40;
+	x = WIDTH/2 - 80;
+	y = HEIGHT/2 - 40;
 	glRasterPos2i(x, y);
-	string s = newG;
+	s = newG;
 	for (string::iterator i = s.begin(); i != s.end(); ++i)
 	{
 		char c = *i;
@@ -1395,9 +1502,10 @@ void finalSummary(){
 
 	string s = "";
 	void * font = GLUT_BITMAP_9_BY_15;
+	void * font1 = GLUT_BITMAP_TIMES_ROMAN_24;
 
 	int x = WIDTH/2 - 80;
-	int y = HEIGHT/2 + 70;
+	int y = HEIGHT/2 + 150;
 
 	s = "PACMAN HIGH SCORES";
 	glRasterPos2i(x, y);
@@ -1420,6 +1528,38 @@ void finalSummary(){
 			glutBitmapCharacter(font, c);
 		}
 		y = y - 20;
+	}
+
+	y = y-50;
+	x = WIDTH/4;
+	glRasterPos2i(x, y);
+	s = "Easy";
+	for (string::iterator i = s.begin(); i != s.end(); ++i)
+	{
+		char c = *i;
+		glColor3d(1.0, 0.0, 0.0);
+		if(dificulty==0)glutBitmapCharacter(font1, c);
+		else glutBitmapCharacter(font, c);
+	}
+	x = x + WIDTH/4;
+	glRasterPos2i(x, y);
+	s = "Medium";
+	for (string::iterator i = s.begin(); i != s.end(); ++i)
+	{
+		char c = *i;
+		glColor3d(1.0, 0.0, 0.0);
+		if(dificulty==1)glutBitmapCharacter(font1, c);
+		else glutBitmapCharacter(font, c);
+	}
+	x = x+WIDTH/4;
+	glRasterPos2i(x, y);
+	s = "Hard";
+	for (string::iterator i = s.begin(); i != s.end(); ++i)
+	{
+		char c = *i;
+		glColor3d(1.0, 0.0, 0.0);
+		if(dificulty==2)glutBitmapCharacter(font1, c);
+		else glutBitmapCharacter(font, c);
 	}
 
 	string newG = "";

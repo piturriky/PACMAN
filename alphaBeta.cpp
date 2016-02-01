@@ -6,7 +6,7 @@ class AlphaBeta{
 			int alpha, beta;
 			alpha = INT_MAX;
 			beta = INT_MIN;
-			cout << "A\n";
+			//cout << "A\n";
 			MinValue(state, &alpha, &beta);
 			return desitionSuccessors;
 		}
@@ -92,7 +92,7 @@ class AlphaBeta{
 				total += BFS(state, i);
 			//cout << state.getPacmanEats() << "  ----------  EATS!\n";
 			total += state.getPacmanEats();
-						cout << "UTILITY:::::::::::" << total << "\n";
+						//cout << "UTILITY:::::::::::" << total << "\n";
 			return total;
 		}
 
