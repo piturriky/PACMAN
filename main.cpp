@@ -504,8 +504,8 @@ void keyboard(unsigned char c,int x,int y)
 	if(modeSummary || modeStart){
 		if(c == 13){
 			if(newGame){
-				lives = 3; //TODO : 3
-				level = 0; //TODO : 0
+				lives = 10; //TODO : 3
+				level = 2; //TODO : 0
 				points = 0;
 				numGhosts = 0; //TODO : 0
 				modeHighScore = false;
@@ -693,7 +693,7 @@ void idle()
 	  		if(map->GetCell(ghosts[i]->GetX(),ghosts[i]->GetY()).GetType()==UNREACHABLE){
 	  			ghosts[i]->SetCurrentDirection(UP);
 	  			ghosts[i]->Out();
-	  			//printf("Out: %i, %i, %i \n",ghosts[i]->GetX(),ghosts[i]->GetY(), ghosts[i]->GetNewDirection());
+	  			printf("Out: %i, %i, %i \n",ghosts[i]->GetX(),ghosts[i]->GetY(), ghosts[i]->GetNewDirection());
 	  		}
 	  		// if ghost is in box -> can go out -> get exit way
 	  		else if(ghosts[i]->CanGoOut()){
@@ -869,7 +869,7 @@ void CalculateNewDirections(){
 		pacmanPair = make_pair(pacman->GetX(), pacman->GetY());
 	vector<pair<int, int> > ghostsList;
 	AlphaBeta ab;
-	for(int i = 0; i < numGhosts; i++){
+	for(int i = 0; i < nextGost; i++){
 		if(!ghosts[i]->LastInBox() && !ghosts[i]->CanGoOut()){
 			if(map->GetCell(ghosts[i]->getNextX(), ghosts[i]->getNextY()).IsType(CORRIDOR))
 				ghostsList.push_back(make_pair(ghosts[i]->getNextX(),ghosts[i]->getNextY()));
@@ -878,10 +878,11 @@ void CalculateNewDirections(){
 		}
 	}
 	//cout << ghostsList.size() << "NUMGHOSTS!!\n";
-	State *state = new State(pacmanPair,ghostsList,map,level*2);
+	State *state = new State(pacmanPair,ghostsList,map,level);
 	vector<int> ghostDirections = ab.alphaBetaDesition(*state);
-	for(int i = 0; i < numGhosts; i++)
+	for(int i = 0; i < nextGost; i++){
 		if (!ghosts[i]->LastInBox() && !ghosts[i]->CanGoOut())ghosts[i]->SetNewDirection(ghostDirections[i]);
+	}
 }
 
 void PositionObserver(float alpha,float beta,int radi)
@@ -1099,7 +1100,7 @@ void insterNewLevel(){
     //map->printMap();
 
     printf("numGhosts: %i\n",numGhosts);
-    numGhosts = numGhosts + (level % 2);
+    numGhosts = 2;//numGhosts + (level % 2);
     printf("numGhosts: %i\n",numGhosts);
 
     ghostsTimer = map->GetInitialMeal()/numGhosts/INCREMENT_GHOST_TIMER;

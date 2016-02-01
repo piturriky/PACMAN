@@ -90,8 +90,10 @@ class AlphaBeta{
 			for(int i = 0; i<state.ghosts.size(); i++)
 				//total += abs(state.ghosts[i].first - state.pacman.first) + abs(state.ghosts[i].second - state.pacman.second);
 				total += BFS(state, i);
-			//cout << state.getPacmanEats() << "  ----------  EATS!\n";
-			total += state.getPacmanEats();
+			/*cout << total << "  ----------  EATS!\n";
+			cout << state.ghosts[0].first << "  ----------  X!\n";
+			cout << state.ghosts[0].second << " ----------  Y!\n";*/
+			//total += state.getPacmanEats();
 						//cout << "UTILITY:::::::::::" << total << "\n";
 			return total;
 		}
@@ -128,12 +130,14 @@ class AlphaBeta{
 			vector< pair <int, int> > visiteds;
 			pair<int, int> auxPair;
 			int treeLevel = 1;
+			/*cout << state.pacman.first << state.ghosts[0].first << "\n";
+			cout << state.pacman.second << state.ghosts[0].second << "\n";*/
 			for(int i = 0; i <= 3; i++)
 			{
 				auxPair = state.ghosts[ghost];
 				visiteds.push_back(auxPair);
 				if(auxPair.first == state.pacman.first && auxPair.second == state.pacman.second)
-					return 1;
+					return INT_MIN;
 				if(CanGo(state.map, auxPair.first, auxPair.second, i)){
 					bfsQueue.push_back(getNextPosition(auxPair, i));
 					visiteds.push_back(getNextPosition(auxPair, i));
