@@ -40,6 +40,7 @@
 #include <fstream>
 #include <vector>
 #include <climits>
+#include <map>
 
 using namespace std;
 
@@ -155,7 +156,7 @@ struct arduinoProtocol {
 #include "jpeglib.h"
 #include "ArduinoComm.cpp"
 
-Map* map;
+Map* mapa;
 Particle* pacman;
 vector<Particle*> ghosts;
 ArduinoComm *aComm;
@@ -278,7 +279,7 @@ int main(int argc, char *argv[]){ // g++ -o pacman pacman->cc -lglut -lGLU -lGL 
 
 	glutMainLoop();
 
-	delete map;
+	delete mapa;
 	return 0;
 }
 
@@ -290,15 +291,15 @@ void fnExit(void){
 void initializeParticles()
 {
 	pacman = new Particle(0.9, 0.8, 0.1);
-	pacman->SetPosition(map->GetWidth()/2, map->GetHeight()/2 - CENTERBOX/2 - 1); 
+	pacman->SetPosition(mapa->GetWidth()/2, mapa->GetHeight()/2 - CENTERBOX/2 - 1); 
 
 	ghosts.clear();
 
 	for(int i = 0; i< numGhosts; i++){
 		ghosts.push_back(new Particle(1,0,0));
-		ghosts[i]->SetPosition(map->GetWidth()/2, map->GetHeight()/2);
+		ghosts[i]->SetPosition(mapa->GetWidth()/2, mapa->GetHeight()/2);
 	}   
-
+	nextGost = 1;
 	ghosts[0]->GoOut();
 }
 
@@ -358,18 +359,18 @@ void display(){
 
 	bool hasFood = false;
 
-	for(i=0;i<map->GetWidth();i++){
-		for(j=0;j<map->GetHeight();j++){
+	for(i=0;i<mapa->GetWidth();i++){
+		for(j=0;j<mapa->GetHeight();j++){
 
-			if(map->GetCell(i, j).IsType(WALL)){
+			if(mapa->GetCell(i, j).IsType(WALL)){
 				material[0]=1; material[1]=1; material[2]=1; material[3]=1.0; 
 				glMaterialfv(GL_FRONT_AND_BACK,GL_AMBIENT_AND_DIFFUSE,material);
 
 				printCellQuad(i,j);
 
 			}
-			else if((i < map->GetWidth()/2 - CENTERBOX/2 || i > map->GetWidth()/2 + CENTERBOX/2
-				|| j < map->GetHeight()/2 - CENTERBOX/2 || j > map->GetHeight()/2 + CENTERBOX/2) && map->HasFood(i, j))
+			else if((i < mapa->GetWidth()/2 - CENTERBOX/2 || i > mapa->GetWidth()/2 + CENTERBOX/2
+				|| j < mapa->GetHeight()/2 - CENTERBOX/2 || j > mapa->GetHeight()/2 + CENTERBOX/2) && mapa->HasFood(i, j))
 			{	//OUT OF CENTER BOX
 				glDisable(GL_TEXTURE_2D);
 				//glColor3f(1.0,1.0,1.0);
@@ -504,8 +505,8 @@ void keyboard(unsigned char c,int x,int y)
 	if(modeSummary || modeStart){
 		if(c == 13){
 			if(newGame){
-				lives = 10; //TODO : 3
-				level = 2; //TODO : 0
+				lives = 3; //TODO : 3
+				level = 0; //TODO : 0
 				points = 0;
 				numGhosts = 0; //TODO : 0
 				modeHighScore = false;
@@ -655,7 +656,7 @@ void idle()
   // PACMAN
   if(pacman->GetState() == QUIET)
   {
-  	if(map->HasFood(pacman->GetX(),pacman->GetY()))Eat();
+  	if(mapa->HasFood(pacman->GetX(),pacman->GetY()))Eat();
 
   	 if(pacman->GetNewDirection() >= 0 && CanGo(pacman->GetX(), pacman->GetY(), pacman->GetNewDirection(),pacman->CanGoOut()))
   	 {
@@ -690,7 +691,7 @@ void idle()
 
 	  		// Going out management
 	  		// if ghost position = door -> new direction = UP and ghost is out
-	  		if(map->GetCell(ghosts[i]->GetX(),ghosts[i]->GetY()).GetType()==UNREACHABLE){
+	  		if(mapa->GetCell(ghosts[i]->GetX(),ghosts[i]->GetY()).GetType()==UNREACHABLE){
 	  			ghosts[i]->SetCurrentDirection(UP);
 	  			ghosts[i]->Out();
 	  			printf("Out: %i, %i, %i \n",ghosts[i]->GetX(),ghosts[i]->GetY(), ghosts[i]->GetNewDirection());
@@ -708,13 +709,10 @@ void idle()
 	  		}
 	  		// ghost is out, normal behavior
 	  		else{
-	  			if (IAActive) CalculateNewDirections();
+	  			if (IAActive && ghosts[i]->GetNewDirection() == -1) CalculateNewDirections();
 	  			else if(RandoomIAActive) ghosts[i]->SetNewDirection(GetGhostRandoomDirection(ghosts[i]->GetX(), ghosts[i]->GetY(),i));
 	  			else if(DirectIAActive) ghosts[i]->SetNewDirection(GetGhostDirection(ghosts[i]->GetX(), ghosts[i]->GetY(),ghosts[i]->GetCurrentDirection()));
-	  			else{
-	  				printf("ERROR IA CONFIGURATION\n");
-	  				exit(0);
-	  			}
+
 	  			//printf("OUT: %i, %i, %i \n",ghosts[i]->GetX(),ghosts[i]->GetY(), ghosts[i]->GetNewDirection());
 	  		}
 
@@ -746,9 +744,6 @@ void idle()
 	  	}
 	  }
 	}
-
-  
-
 	  glutPostRedisplay();
 	}
 
@@ -757,20 +752,20 @@ bool CanGo(int x, int y, int direction, bool canGoOut)
 	switch(direction)
 	{
 		case UP:
-			//printf("UP %i\n", map->GetCell(x, y + 1).GetType());
+			//printf("UP %i\n", mapa->GetCell(x, y + 1).GetType());
 			if(canGoOut){
-				return map->GetCell(x, y + 1).IsType(CORRIDOR) || map->GetCell(x, y + 1).IsType(UNREACHABLE);
+				return mapa->GetCell(x, y + 1).IsType(CORRIDOR) || mapa->GetCell(x, y + 1).IsType(UNREACHABLE);
 			}
-			return map->GetCell(x, y + 1).IsType(CORRIDOR);
+			return mapa->GetCell(x, y + 1).IsType(CORRIDOR);
 		case DOWN:
-			//printf("DOWN %i\n", map->GetCell(x, y - 1).GetType());
-			return map->GetCell(x, y - 1).IsType(CORRIDOR);
+			//printf("DOWN %i\n", mapa->GetCell(x, y - 1).GetType());
+			return mapa->GetCell(x, y - 1).IsType(CORRIDOR);
 		case RIGHT:
-			//printf("RIGHT %i\n", map->GetCell(x + 1, y).GetType());
-			return map->GetCell(x + 1, y).IsType(CORRIDOR);
+			//printf("RIGHT %i\n", mapa->GetCell(x + 1, y).GetType());
+			return mapa->GetCell(x + 1, y).IsType(CORRIDOR);
 		case LEFT:
-			//printf("LEFT %i\n", map->GetCell(x - 1, y).GetType());
-			return map->GetCell(x - 1, y).IsType(CORRIDOR);
+			//printf("LEFT %i\n", mapa->GetCell(x - 1, y).GetType());
+			return mapa->GetCell(x - 1, y).IsType(CORRIDOR);
 	}
 	return false;
 }
@@ -843,16 +838,16 @@ int GetGhostDirection(int x, int y, int direction){
 }
 
 int GetGhostDirectionToExit(int x, int y){
-	if(x>map->GetWidth()/2){
+	if(x>mapa->GetWidth()/2){
 		return LEFT;
-	}else if(x < map->GetWidth()/2){
+	}else if(x < mapa->GetWidth()/2){
 		return RIGHT;
 	}
 	return UP;
 }
 
 void Eat(){
-	map->EatFood(pacman->GetX(),pacman->GetY());
+	mapa->EatFood(pacman->GetX(),pacman->GetY());
 	points++;
 	levelPoints++;
 	if(levelPoints % ghostsTimer == 0 && nextGost < numGhosts){
@@ -865,20 +860,21 @@ void Eat(){
 
 void CalculateNewDirections(){
 	pair<int, int> pacmanPair = make_pair(pacman->getNextX(),pacman->getNextY());
-	if(!map->GetCell(pacmanPair.first, pacmanPair.second).IsType(CORRIDOR))
+	if(!mapa->GetCell(pacmanPair.first, pacmanPair.second).IsType(CORRIDOR))
 		pacmanPair = make_pair(pacman->GetX(), pacman->GetY());
 	vector<pair<int, int> > ghostsList;
 	AlphaBeta ab;
 	for(int i = 0; i < nextGost; i++){
 		if(!ghosts[i]->LastInBox() && !ghosts[i]->CanGoOut()){
-			if(map->GetCell(ghosts[i]->getNextX(), ghosts[i]->getNextY()).IsType(CORRIDOR))
+			if(mapa->GetCell(ghosts[i]->getNextX(), ghosts[i]->getNextY()).IsType(CORRIDOR))
 				ghostsList.push_back(make_pair(ghosts[i]->getNextX(),ghosts[i]->getNextY()));
 			else				
 				ghostsList.push_back(make_pair(ghosts[i]->GetX(),ghosts[i]->GetY()));
 		}
 	}
 	//cout << ghostsList.size() << "NUMGHOSTS!!\n";
-	State *state = new State(pacmanPair,ghostsList,map,level);
+	if(ghostsList.size()<1)return;
+	State *state = new State(pacmanPair,ghostsList,mapa,3);
 	vector<int> ghostDirections = ab.alphaBetaDesition(*state);
 	for(int i = 0; i < nextGost; i++){
 		if (!ghosts[i]->LastInBox() && !ghosts[i]->CanGoOut())ghosts[i]->SetNewDirection(ghostDirections[i]);
@@ -928,7 +924,7 @@ void PositionObserver(float alpha,float beta,int radi)
 
 void printCellQuad(int i,int j){
 
-	//glColor3f(map->red/MAX_F,map->green/MAX_F,map->blue/MAX_F);
+	//glColor3f(mapa->red/MAX_F,mapa->green/MAX_F,mapa->blue/MAX_F);
 	glBindTexture(GL_TEXTURE_2D,TEXT_PARED);
 	glBegin(GL_QUADS);
 	glNormal3f(0,0,1);
@@ -982,7 +978,7 @@ void printCellQuad(int i,int j){
 
 	glEnd();
 
-	//glColor3f(map->red/2/MAX_F,map->green/2/MAX_F,map->blue/2/MAX_F);
+	//glColor3f(mapa->red/2/MAX_F,mapa->green/2/MAX_F,mapa->blue/2/MAX_F);
 	glBindTexture(GL_TEXTURE_2D,TEXT_SOSTRE);
 	glBegin(GL_QUADS);
 	glNormal3f(0,1,0);
@@ -1007,11 +1003,11 @@ void printGroundMap(){
 	glTexCoord2f(0.0,2.0);
 	glVertex3i(0, Y, 0);
 	glTexCoord2f(2.0,2.0);
-	glVertex3i(map->GetWidth()*cellWidth, Y, 0);
+	glVertex3i(mapa->GetWidth()*cellWidth, Y, 0);
 	glTexCoord2f(2.0,0.0);
-	glVertex3i(map->GetWidth()*cellWidth,Y,map->GetHeight()*cellHeight);
+	glVertex3i(mapa->GetWidth()*cellWidth,Y,mapa->GetHeight()*cellHeight);
 	glTexCoord2f(0.0,0.0);
-	glVertex3i(0,Y,map->GetHeight()*cellHeight);
+	glVertex3i(0,Y,mapa->GetHeight()*cellHeight);
 
 	glEnd();
 }
@@ -1067,10 +1063,10 @@ void ReadJPEG(char *filename,unsigned char **image,int *width, int *height)
 void callback(int v){
 	if(v > 0){
 		betweenLevelsNum = to_string(v);
-		glutTimerFunc(1/*000*/,callback,v - 1); //TODO
+		glutTimerFunc(1000,callback,v - 1); //TODO
 	}else if(v == 0){
 		betweenLevelsNum = "FIGHT!!!";
-		glutTimerFunc(1/*000*/,callback,v - 1);
+		glutTimerFunc(1000,callback,v - 1);
 	}else{
 		modeBetweenLevels = false;
 	}
@@ -1095,18 +1091,16 @@ void insterNewLevel(){
    if(w > 100 && h > 100) wallProbDecrease = 5;
    else if(w > 50 && h > 50) wallProbDecrease = 10; 
 
-    map = new Map(w, h);
-    map->initialize();
-    //map->printMap();
+    mapa = new Map(w, h);
+    mapa->initialize();
+    //mapa->printMap();
 
-    printf("numGhosts: %i\n",numGhosts);
-    numGhosts = 2;//numGhosts + (level % 2);
-    printf("numGhosts: %i\n",numGhosts);
+    numGhosts = numGhosts + (level % 2);
 
-    ghostsTimer = map->GetInitialMeal()/numGhosts/INCREMENT_GHOST_TIMER;
+    ghostsTimer = mapa->GetInitialMeal()/numGhosts/INCREMENT_GHOST_TIMER;
 	
-	cellWidth = WIDTH/map->GetWidth();
-	cellHeight = HEIGHT/map->GetHeight()*(-1);
+	cellWidth = WIDTH/mapa->GetWidth();
+	cellHeight = HEIGHT/mapa->GetHeight()*(-1);
 	cellDepth = (cellWidth-cellHeight)/4;
 	radiParticle = (fmin(cellWidth,-cellHeight))/2;
 	radiFood =  radiParticle/4;

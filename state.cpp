@@ -3,21 +3,21 @@ class State{
 	public:
 		pair<int, int> pacman;
 		vector<pair<int, int> > ghosts;
-		Map* map;
+		Map* mapa;
 
 		int depth, currentDepth;
 
 		int activeGhosts;
 
-		State(pair<int, int> pacman, vector<pair<int, int> > ghosts, Map* map, int depth, int currentDepth = 0, int pacmanEats = 0){
+		State(pair<int, int> pacman, vector<pair<int, int> > ghosts, Map* mapa, int depth, int currentDepth = 0, int pacmanEats = 0){
 			this->pacman = pacman;
 			this->ghosts = ghosts;
 
-			this->map = map;
+			this->mapa = mapa;
 
 			this->depth = depth;
 			this->currentDepth = currentDepth;
-			this->pacmanEats = pacmanEats + 1 * map->GetCell(pacman.first, pacman.second).HasFood();
+			this->pacmanEats = pacmanEats + 1 * mapa->GetCell(pacman.first, pacman.second).HasFood();
      	}
 
      	bool isTerminal(){
@@ -29,12 +29,12 @@ class State{
      		for(int i = 0; i < ghosts.size(); i++){
      			newGhosts.push_back(getNextPosition(this->ghosts[i], successors[i]));
      		}
-     		State *state = new State(this->pacman, newGhosts, map, depth, currentDepth + 1);
+     		State *state = new State(this->pacman, newGhosts, mapa, depth, currentDepth + 1);
      		return *state;
      	}
 
      	State createSuccessorState(int direction){
-     		State *state = new State(getNextPosition(this->pacman, direction), ghosts, map, depth, currentDepth + 1, this->pacmanEats);
+     		State *state = new State(getNextPosition(this->pacman, direction), ghosts, mapa, depth, currentDepth + 1, this->pacmanEats);
      		return *state;
      	}
 
